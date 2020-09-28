@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/playing_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/playing_background">
+
+    <include layout="@layout/layout_pk_background" />
+
+    <com.pili.pldroid.player.widget.PLVideoView
+        android:id="@+id/playing_player_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_centerInParent="true" />
+
+    <ImageView
+        android:id="@+id/view_playing_anchor_left"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/bg_playing_anchor_left"
+        android:visibility="gone" />
+
+    <RelativeLayout
+        android:id="@+id/rl_playing_bar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp">
+
+        <TextView
+            android:id="@+id/tv_playing_room_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="20dp"
+            android:text="七小牛的房间"
+            android:textColor="@color/white"
+            android:textSize="17sp" />
+
+        <ImageView
+            android:id="@+id/iv_playing_audience"
+            android:layout_width="25dp"
+            android:layout_height="25dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="30dp"
+            android:src="@drawable/ic_audience" />
+
+        <TextView
+            android:id="@+id/tv_playing_room_audience"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@+id/iv_playing_audience"
+            android:layout_marginStart="-25dp"
+            android:layout_toEndOf="@+id/iv_playing_audience"
+            android:textColor="@color/white"
+            android:textSize="12sp" />
+
+    </RelativeLayout>
+
+    <TextView
+        android:id="@+id/tv_pk_visitor_name"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+        android:layout_alignEnd="@+id/playing_player_view"
+        android:layout_alignBottom="@+id/playing_player_view"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_translucent_radius360"
+        android:ellipsize="middle"
+        android:maxWidth="100dp"
+        android:textColor="@color/white"
+        android:visibility="gone" />
+
+    <ListView
+        android:id="@+id/chat_list_view"
+        android:layout_width="230dp"
+        android:layout_height="152dp"
+        android:layout_above="@+id/bottom_layout"
+        android:divider="@null"
+        android:listSelector="@android:color/transparent"
+        android:paddingStart="10dp"
+        android:scrollbars="none"
+        android:transcriptMode="alwaysScroll"
+        android:visibility="invisible" />
+
+    <com.orzangleli.xdanmuku.DanmuContainerView
+        android:id="@+id/danmuContainerView"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="70dp"
+        android:visibility="invisible" />
+
+    <com.qiniu.droid.rtc.live.demo.im.gift.GiftView
+        android:id="@+id/giftView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@id/danmuContainerView"
+        android:layout_marginTop="20dp"
+        android:visibility="invisible" />
+
+    <com.qiniu.droid.rtc.live.demo.im.like.HeartLayout
+        android:id="@+id/heart_layout"
+        android:layout_width="126dp"
+        android:layout_height="match_parent"
+        android:layout_above="@+id/bottom_layout"
+        android:layout_alignParentEnd="true"
+        android:layout_marginBottom="4dp"
+        android:visibility="invisible" />
+
+    <LinearLayout
+        android:id="@+id/bottom_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_gravity="bottom"
+        android:fitsSystemWindows="true"
+        android:orientation="horizontal">
+
+        <fragment
+            android:id="@+id/bottom_bar"
+            android:name="com.qiniu.droid.rtc.live.demo.im.panel.BottomPanelFragment"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            android:layout_weight="0.9"
+            android:visibility="invisible" />
+
+        <ImageView
+            android:id="@+id/iv_playing_close"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            android:layout_marginEnd="20dp"
+            android:padding="3dp"
+            android:src="@drawable/ic_close"
+            android:visibility="invisible" />
+    </LinearLayout>
+</RelativeLayout>
