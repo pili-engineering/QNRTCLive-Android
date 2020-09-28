@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#303F9F</color>
+    <color name="fontColor">#4A4A4A</color>
+    <color name="backgroundStartColor">#0EB7FF</color>
+    <color name="backgroundEndColor">#0681FF</color>
+    <color name="popWindowBackgroundColor">#F3F3F3</color>
+    <color name="logTextBackground">#49494B</color>
+    <color name="red">#CD5849</color>
+    <color name="transparentBackground">#0000</color>
+
+    <color name="blink_blue">#3A83F5</color>
+    <color name="blink_black">#000000</color>
+    <color name="colorWhite">#FFFFFF</color>
+    <color name="blink_text_grey">#333333</color>
+    <color name="blink_launcher_grey">#666666</color>
+    <color name="blink_green">#006400</color>
+    <color name="blink_grey">#CFCFCE</color>
+    <color name="blink_text_white">#FFFFFF</color>
+    <color name="transparent">#00000000</color>
+    <color name="line">#CCCCCC</color>
+    <color name="c999999">#999999</color>
+    <color name="colorAccent">#1E8BFF</color>
+
+    <color name="ovalBtnBackground">#34AADC</color>
+    <color name="colorBasic">#1E8BFF</color>
+    <color name="colorDivider">#979797</color>
+
+    <color name="white">#FFFFFF</color>
+    <color name="home_background">#F5F6F8</color>
+    <color name="black">#000000</color>
+    <color name="blue">#2196F3</color>
+    <color name="dark_blue">#1E8BFF</color>
+    <color name="gray">#878787</color>
+
+    <color name="translucent">#66000000</color>
+    <color name="playing_background">#212121</color>
+</resources>

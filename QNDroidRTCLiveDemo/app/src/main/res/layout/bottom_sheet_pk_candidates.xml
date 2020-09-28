@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/pk_candidates_layout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bottom_sheet_background"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/rtc_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:padding="8dp"
+        android:text="@string/title_pk_candidates"
+        android:textSize="16sp"
+        android:textColor="@color/colorBasic" />
+
+    <View
+        android:id="@+id/view_divider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/colorDivider" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/pk_candidates_list"
+        android:layout_width="match_parent"
+        android:layout_height="240dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="32dp" />
+
+</LinearLayout>

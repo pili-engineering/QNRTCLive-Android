@@ -1,0 +1,80 @@
+<resources>
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar.Bridge">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:textColor">@android:color/black</item>
+    </style>
+
+    <style name="BottomSheetDialogTheme" parent="Theme.MaterialComponents.Light.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/BottomSheetDialogStyle</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <style name="BottomSheetDialogStyle" parent="Widget.Design.BottomSheet.Modal">
+        <item name="android:background">@color/transparent</item>
+    </style>
+
+    <style name="DialogTheme" parent="Theme.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+    <style name="AppThemeFullscreen" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+    <style name="MySwitch" parent="Theme.AppCompat.Light">
+        <!--开启时的颜色-->
+        <item name="colorControlActivated">@color/blink_blue</item>
+        <!--关闭时的颜色-->
+        <item name="colorSwitchThumbNormal">@color/blink_launcher_grey</item>
+        <!--关闭时的轨迹颜色取30%的颜色-->
+        <item name="android:colorForeground">@color/blink_launcher_grey</item>
+    </style>
+
+    <style name="adaptive_ic_layout">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/blink_text_grey</item>
+        <item name="android:gravity">center</item>
+        <item name="android:drawablePadding">8dp</item>
+    </style>
+
+    <style name="LoadingDialogStyle">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowFrame">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
+        <item name="android:backgroundDimEnabled">true</item>
+    </style>
+
+    <declare-styleable name="ButtonView">
+        <attr name="src" format="reference" />
+        <attr name="title" format="string" />
+        <attr name="desc" format="string" />
+    </declare-styleable>
+
+    <declare-styleable name="ProgressBar">
+        <attr name="activeLineColor" format="color" />
+        <attr name="inactiveLineColor" format="color" />
+        <attr name="circleColor" format="color" />
+        <attr name="textColor" format="color" />
+        <attr name="lineHeight" format="dimension" />
+        <attr name="circleRadius" format="dimension" />
+        <attr name="delayShowText" format="integer" />
+        <attr name="textPadding" format="dimension" />
+        <attr name="animationTime" format="integer" />
+        <attr name="textSize" format="dimension" />
+        <attr name="textHeight" format="dimension" />
+        <attr name="progress" format="float" />
+    </declare-styleable>
+
+</resources>

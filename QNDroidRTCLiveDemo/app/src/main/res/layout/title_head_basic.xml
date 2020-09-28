@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="56dp"
+    android:background="@color/blue"
+    android:gravity="center_vertical">
+
+    <LinearLayout
+        android:id="@+id/rl_bar_back"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginStart="16dp">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_back" />
+
+        <TextView
+            android:id="@+id/tv_bar_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:singleLine="true"
+            android:text="用户协议"
+            android:textSize="20sp"
+            android:typeface="monospace"
+            android:fontFamily="sans-serif-medium"
+            android:textColor="@color/white" />
+
+    </LinearLayout>
+
+</RelativeLayout>

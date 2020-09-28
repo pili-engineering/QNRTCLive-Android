@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/layout_login_phone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:hint="@string/hint_modify_nick_name"
+        android:textColorHint="@color/gray"
+        android:layout_gravity="center"
+        app:boxBackgroundColor="@color/transparent"
+        app:boxStrokeColor="@color/blue"
+        app:boxStrokeWidth="0.5dp"
+        app:errorEnabled="true"
+        app:hintTextColor="@color/blue">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_edit_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:textSize="17sp" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <LinearLayout
+        android:id="@+id/gender_setting"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_gravity="center"
+        android:orientation="horizontal"
+        android:layout_marginBottom="32dp">
+
+        <TextView
+            android:id="@+id/gender_radios"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_weight="1"
+            android:text="@string/text_gender" />
+
+        <RadioGroup
+            android:id="@+id/gender_radio_group"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="3"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/gender_male"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:checked="true"
+                android:text="@string/gender_male" />
+
+            <RadioButton
+                android:id="@+id/gender_female"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:checked="true"
+                android:text="@string/gender_female" />
+        </RadioGroup>
+    </LinearLayout>
+
+</LinearLayout>
