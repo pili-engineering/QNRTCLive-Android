@@ -36,4 +36,6 @@
 
     <color name="translucent">#66000000</color>
     <color name="playing_background">#212121</color>
+    
+    <color name="colorEtHint">#C6C6C6</color>
 </resources>

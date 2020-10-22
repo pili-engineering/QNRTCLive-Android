@@ -57,7 +57,7 @@ public class PermissionChecker {
             permissionsNeeded.add("Write external storage");
         }
 
-        if (permissionsNeeded.size() > 0) {
+        if (!permissionsNeeded.isEmpty()) {
             // Need Rationale
             String message = "You need to grant access to " + permissionsNeeded.get(0);
             for (int i = 1; i < permissionsNeeded.size(); i++) {
@@ -66,15 +66,9 @@ public class PermissionChecker {
             // Check for Rationale Option
             if (!mActivity.shouldShowRequestPermissionRationale(permissionsList.get(0))) {
                 showMessageOKCancel(message,
-                        new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                mActivity.requestPermissions(permissionsList.toArray(new String[permissionsList.size()]),
-                                        REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS);
-                            }
-                        });
-            }
-            else {
+                        (dialog, which) -> mActivity.requestPermissions(permissionsList.toArray(new String[permissionsList.size()]),
+                                REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS));
+            } else {
                 mActivity.requestPermissions(permissionsList.toArray(new String[permissionsList.size()]),
                         REQUEST_CODE_ASK_MULTIPLE_PERMISSIONS);
             }

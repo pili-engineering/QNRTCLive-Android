@@ -1,6 +1,5 @@
 package com.qiniu.droid.rtc.live.demo.activity;
 
-import android.content.Intent;
 import android.os.Handler;
 import android.text.Editable;
 import android.text.SpannableString;
@@ -17,8 +16,6 @@ import android.widget.EditText;
 import android.widget.RadioButton;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
-
 import com.google.android.material.textfield.TextInputLayout;
 import com.google.gson.Gson;
 import com.qiniu.droid.rtc.live.demo.R;
@@ -34,6 +31,8 @@ import com.qiniu.droid.rtc.live.demo.utils.RegexUtils;
 import com.qiniu.droid.rtc.live.demo.utils.SharedPreferencesUtils;
 import com.qiniu.droid.rtc.live.demo.utils.ThreadUtils;
 import com.qiniu.droid.rtc.live.demo.utils.ToastUtils;
+
+import androidx.annotation.NonNull;
 
 public class LoginActivity extends BaseActivity {
 

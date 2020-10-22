@@ -151,6 +151,18 @@ public class QNAppServer {
         return mAuthToken;
     }
 
+    public void getUploadToken(String key, int expireTimeInSecond, OnRequestResultCallback callback) {
+        String url = LIVE_SERVER_ADDR + "/v1/upload/token";
+        String requestBody = "{\"filename\":\"" + key + "\",\"expireSeconds\":" + expireTimeInSecond + "}";
+        doPostRequest(url, requestBody, mAuthorization, callback);
+    }
+
+    public void sendFeedbacks(String content, String attachment, OnRequestResultCallback callback) {
+        String url = LIVE_SERVER_ADDR + "/v1/feedbacks";
+        String requestBody = "{\"content\":\"" + content + "\",\"attachment\":\"" + attachment + "\"}";
+        doPostRequest(url, requestBody, mAuthorization, callback);
+    }
+
     private static X509TrustManager getTrustManager() {
         try {
             TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
@@ -234,7 +246,7 @@ public class QNAppServer {
                     .connectTimeout(10, TimeUnit.SECONDS)
                     .build();
             Request request = new Request.Builder()
-                    .header("Authorization", authorization)
+                    .header("Authorization", authorization == null ? "" : authorization)
                     .url(url)
                     .build();
             Response response = client.newCall(request).execute();

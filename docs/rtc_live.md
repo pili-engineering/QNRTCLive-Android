@@ -83,6 +83,14 @@ dependencies {
 }
 ```
 
+如果您使用的版本是 2.5.0+，那么为了给您提供更好的使用体验，请务必依赖如下 dns 解析库：
+
+```java
+dependencies {
+    implementation 'com.qiniu:happy-dns:0.2.17'
+}
+```
+
 #### 添加混淆
 
 如果工程中添加了混淆，则七牛的包也需要添加混淆规则，在 proguard-rules.pro 文件下添加以下代码：

@@ -3,6 +3,7 @@
     android:id="@+id/playing_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:keepScreenOn="true"
     android:background="@color/playing_background">
 
     <include layout="@layout/layout_pk_background" />
@@ -71,17 +72,28 @@
         android:textColor="@color/white"
         android:visibility="gone" />
 
-    <ListView
-        android:id="@+id/chat_list_view"
+    <FrameLayout
         android:layout_width="230dp"
         android:layout_height="152dp"
-        android:layout_above="@+id/bottom_layout"
-        android:divider="@null"
-        android:listSelector="@android:color/transparent"
-        android:paddingStart="10dp"
-        android:scrollbars="none"
-        android:transcriptMode="alwaysScroll"
-        android:visibility="invisible" />
+        android:layout_above="@+id/bottom_layout">
+
+        <ListView
+            android:id="@+id/chat_list_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@null"
+            android:listSelector="@android:color/transparent"
+            android:paddingStart="10dp"
+            android:scrollbars="none"
+            android:transcriptMode="alwaysScroll"
+            android:visibility="invisible" />
+
+        <View
+            android:id="@+id/chat_list_touch_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
+
 
     <com.orzangleli.xdanmuku.DanmuContainerView
         android:id="@+id/danmuContainerView"

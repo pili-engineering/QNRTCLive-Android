@@ -15,6 +15,7 @@ import com.qiniu.droid.rtc.live.demo.fragment.HomeFragment;
 import com.qiniu.droid.rtc.live.demo.fragment.MineFragment;
 import com.qiniu.droid.rtc.live.demo.utils.BarUtils;
 import com.qiniu.droid.rtc.live.demo.utils.PermissionChecker;
+import com.qiniu.droid.rtc.live.demo.utils.SharedPreferencesUtils;
 import com.qiniu.droid.rtc.live.demo.utils.ToastUtils;
 
 public class MainActivity extends BaseActivity {
@@ -68,7 +69,11 @@ public class MainActivity extends BaseActivity {
                 break;
             case R.id.iv_main_start_live:
                 if (isPermissionOK()) {
-                    startActivity(LiveRoomActivity.class);
+                    if (!SharedPreferencesUtils.resourceReady(this)) {
+                        startActivity(LoadResourcesActivity.class);
+                    } else {
+                        startActivity(LiveRoomActivity.class);
+                    }
                 }
                 break;
             case R.id.tv_main_mine:

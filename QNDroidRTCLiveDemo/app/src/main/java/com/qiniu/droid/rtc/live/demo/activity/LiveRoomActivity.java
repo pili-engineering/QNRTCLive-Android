@@ -2,7 +2,6 @@ package com.qiniu.droid.rtc.live.demo.activity;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.net.Uri;
@@ -18,14 +17,17 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -57,7 +59,6 @@ import com.qiniu.droid.rtc.QNTrackInfo;
 import com.qiniu.droid.rtc.QNTrackKind;
 import com.qiniu.droid.rtc.QNVideoFormat;
 import com.qiniu.droid.rtc.live.demo.R;
-import com.qiniu.droid.rtc.live.demo.RTCLiveApplication;
 import com.qiniu.droid.rtc.live.demo.fragment.EffectFragment;
 import com.qiniu.droid.rtc.live.demo.fragment.LiveSettingFragment;
 import com.qiniu.droid.rtc.live.demo.fragment.PkCandidatesFragment;
@@ -121,8 +122,6 @@ import io.rong.imlib.model.Conversation;
 import io.rong.imlib.model.MessageContent;
 import io.rong.message.TextMessage;
 
-import static com.qiniu.droid.rtc.live.demo.im.DataInterface.DEFAULT_AVATAR;
-import static com.qiniu.droid.rtc.live.demo.im.DataInterface.getUri;
 import static com.qiniu.droid.rtc.live.demo.im.message.ChatroomSignal.SIGNAL_STREAMER_BACK_TO_LIVING;
 import static com.qiniu.droid.rtc.live.demo.im.message.ChatroomSignal.SIGNAL_STREAMER_SWITCH_TO_BACKSTAGE;
 import static com.qiniu.droid.rtc.live.demo.signal.QNSignalErrorCode.ROOM_IN_PK;
@@ -145,6 +144,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     private Button mStartStreaming;
     private TextView mModifiedRoomNameText;
     private TextView mRoomNameText;
+    private ImageView mAudienceNumberImage;
     private TextView mAudienceNumberText;
     private LoadingDialog mLoadingDialog;
 
@@ -171,8 +171,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     private volatile boolean mIsLocalTracksMerged;
     private volatile boolean mIsRemoteTracksMerged;
     private boolean mReturnOriginalRoom;
-    private volatile boolean mIsFontCamera = true;
     private volatile boolean mNeedResetFlashlight = false;
+
+    private int mSerialNum;
 
     private QNRoomState mCurrentRoomState = QNRoomState.IDLE;
     private UserInfo mUserInfo;
@@ -183,7 +184,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     private String mMergeJobId = null;
     private List<UserInfo> mPkUserList;
     private UserInfo mPkRequesterInfo;
+    private String mPkRoomId;
     private String mTargetPkRoomToken;
+    private volatile boolean mIsPkAccepted;
     private volatile boolean mIsPkMode;
     private boolean mIsPkRequester = false;
     private RoomInfo mTargetPkRoomInfo;
@@ -195,6 +198,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     private ScheduledExecutorService mExecutor;
     private Semaphore captureStoppedSem = new Semaphore(1);
     private boolean mStreamingStopped;
+    private Toast mAudienceNumberToast;
 
     private final Runnable mAudienceNumGetter = new Runnable() {
         @Override
@@ -234,6 +238,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
 
         initViews();
         initStatusBar();
+        initNavigationBar();
         // 初始化 QNRTCEngine
         initQNRTCEngine();
         // 初始化本地发布 track
@@ -243,16 +248,8 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         // 初始化 IM 控件
         initChatView();
 
-        if (!SharedPreferencesUtils.resourceReady(this)) {
-            startActivity(new Intent(this, LoadResourcesActivity.class));
-        }
-
         mPkUserList = new ArrayList<>();
         mPkUserList.add(mUserInfo);
-
-        if (mExecutor == null || mExecutor.isShutdown()) {
-            mExecutor = Executors.newSingleThreadScheduledExecutor();
-        }
     }
 
     @Override
@@ -268,6 +265,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         mEngine.stopCapture();
         if (!mStreamingStopped) {
             streamerSwitchToBackstage();
+        }
+        if (mAudienceNumberToast != null) {
+            mAudienceNumberToast.cancel();
         }
     }
 
@@ -309,9 +309,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                     .create();
         }
         mLoadingDialog.show();
-        if (mRoomInfo == null) {
-            mRoomInfo = getRoomInfoByCreator();
-        }
+        mRoomInfo = getRoomInfoByCreator();
         if (mRoomInfo == null) {
             startStreamingByCreateRoom();
         } else {
@@ -337,16 +335,13 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             mEngine.switchCamera(new QNCameraSwitchResultCallback() {
                 @Override
                 public void onCameraSwitchDone(boolean isFrontCamera) {
-                    mMainHandler.post(() -> {
-                        mIsFontCamera = isFrontCamera;
-                        mNeedResetFlashlight = true;
-                        updateProcessTypes();
-                    });
+                    mIsFrontCamera = isFrontCamera;
+                    mNeedResetFlashlight = true;
+                    updateProcessTypes();
                 }
 
                 @Override
                 public void onCameraSwitchError(String errorMessage) {
-
                 }
             });
         }
@@ -407,6 +402,23 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         constraintSet.applyTo(mConstraintLayout);
     }
 
+    private void initNavigationBar() {
+        mBeautyBtn.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View v, int left, int top, int right, int bottom, int oldLeft, int oldTop, int oldRight, int oldBottom) {
+                mBeautyBtn.removeOnLayoutChangeListener(this);
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    WindowInsets windowInsets = getWindow().getDecorView().getRootWindowInsets();
+                    ConstraintSet constraintSet = new ConstraintSet();
+                    constraintSet.clone(mConstraintLayout);
+                    int bottomMargin = constraintSet.getParameters(mBeautyBtn.getId()).layout.bottomMargin;
+                    constraintSet.setMargin(mBeautyBtn.getId(), ConstraintSet.BOTTOM, bottomMargin + windowInsets.getSystemWindowInsetBottom());
+                    constraintSet.applyTo(mConstraintLayout);
+                }
+            }
+        });
+    }
+
     /**
      * 初始化视图
      */
@@ -424,6 +436,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         mStartStreaming = findViewById(R.id.start_live_streaming_button);
         mRoomNameText = findViewById(R.id.room_nick_name_text);
         mModifiedRoomNameText = findViewById(R.id.room_nick_name);
+        mAudienceNumberImage = findViewById(R.id.audience_image);
         mAudienceNumberText = findViewById(R.id.audience_number_text);
 
         mRoomInfo = getRoomInfoByCreator();
@@ -433,6 +446,8 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             mModifiedRoomNameText.setText(mRoomInfo.getName());
         }
 
+        mAudienceNumberImage.setOnClickListener(v -> showAudienceNumberToast());
+        mAudienceNumberText.setOnClickListener(v -> showAudienceNumberToast());
         mBeautyBtn.setOnClickListener(v -> showEffectPanelSelectPopupWindow());
     }
 
@@ -442,12 +457,12 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     private void initQNRTCEngine() {
         // 1. VideoPreviewFormat 和 VideoEncodeFormat 建议保持一致
         // 2. 如果远端连麦出现回声的现象，可以通过配置 setLowAudioSampleRateEnabled(true) 或者 setAEC3Enabled(true) 后再做进一步测试，并将设备信息反馈给七牛技术支持
-        QNVideoFormat format = new QNVideoFormat(1280, 720, 30);
+        QNVideoFormat format = new QNVideoFormat(Config.STREAMING_HEIGHT, Config.STREAMING_WIDTH, Config.STREAMING_FPS);
         QNRTCSetting setting = new QNRTCSetting();
         setting.setCameraID(QNRTCSetting.CAMERA_FACING_ID.FRONT)
                 .setHWCodecEnabled(false)
                 .setMaintainResolution(true)
-                .setVideoBitrate(2000 * 1000)
+                .setVideoBitrate(Config.STREAMING_BITRATE)
                 .setVideoEncodeFormat(format)
                 .setVideoPreviewFormat(format);
         mEngine = QNRTCEngine.createEngine(getApplicationContext(), setting, this);
@@ -611,7 +626,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         } else {
             mPkCandidatesFragment.updateCandidateRooms(liveRoomsCanPk);
         }
-        mPkCandidatesFragment.show(getSupportFragmentManager(), PkCandidatesFragment.TAG);
+        if (getSupportFragmentManager().findFragmentByTag(PkCandidatesFragment.TAG) == null) {
+            mPkCandidatesFragment.show(getSupportFragmentManager(), PkCandidatesFragment.TAG);
+        }
     }
 
     private void showPkParticipantsFragment() {
@@ -635,13 +652,34 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                         return;
                     }
                     if (mSignalClient != null) {
-                        mSignalClient.endPk(mIsPkRequester ? mTargetPkRoomInfo.getId() : mRoomId);
+                        mSignalClient.endPk(mPkRoomId);
                     }
                     mPkParticipantsFragment.dismiss();
                 }
             });
         }
-        mPkParticipantsFragment.show(getSupportFragmentManager(), PkParticipantsFragment.TAG);
+        if (getSupportFragmentManager().findFragmentByTag(PkParticipantsFragment.TAG) == null) {
+            mPkParticipantsFragment.show(getSupportFragmentManager(), PkParticipantsFragment.TAG);
+        }
+    }
+
+    private void showAudienceNumberToast() {
+        ToastUtils.cancel();
+        String message = "当前观看人数：" + mAudienceNumberText.getText() + "人";
+        if (mAudienceNumberToast == null) {
+            mAudienceNumberToast = Toast.makeText(this, message, Toast.LENGTH_SHORT);
+            TextView textView = new TextView(this);
+            textView.setText(message);
+            textView.setTextColor(Color.WHITE);
+            textView.setBackgroundResource(R.drawable.bg_transparent25_radius7);
+            textView.setPadding(25, 10, 25, 10);
+            mAudienceNumberToast.setView(textView);
+            mAudienceNumberToast.setGravity(Gravity.CENTER, 0, 0);
+        } else {
+            TextView textView = (TextView) mAudienceNumberToast.getView();
+            textView.setText(message);
+        }
+        mAudienceNumberToast.show();
     }
 
     private void updateUIAfterLiving() {
@@ -668,7 +706,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         if (mForwardJob == null) {
             mForwardJob = new QNForwardJob();
             mForwardJob.setForwardJobId(mRoomId);
-            mForwardJob.setPublishUrl(String.format(getString(R.string.publish_url), mRoomId));
+            mForwardJob.setPublishUrl(String.format(getString(R.string.publish_url), mRoomId, mSerialNum++));
             mForwardJob.setAudioTrack(mLocalAudioTrack);
             mForwardJob.setVideoTrack(mLocalVideoTrack);
             mForwardJob.setInternalForward(true);
@@ -685,12 +723,12 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         // 设置合流任务 id，该 id 为合流任务的唯一标识符
         mQNMergeJob.setMergeJobId(mRoomId);
         // 设置合流任务的推流地址，该场景下需保持一致
-        mQNMergeJob.setPublishUrl(String.format(getString(R.string.publish_url), mRoomId));
+        mQNMergeJob.setPublishUrl(String.format(getString(R.string.publish_url), mRoomId, mSerialNum++));
         mQNMergeJob.setWidth(Config.STREAMING_WIDTH);
         mQNMergeJob.setHeight(Config.STREAMING_HEIGHT);
         // QNMergeJob 中码率单位为 bps，所以，若期望码率为 1200kbps，则实际传入的参数值应为 1200 * 1000
-        mQNMergeJob.setBitrate(2000 * 1000);
-        mQNMergeJob.setFps(30);
+        mQNMergeJob.setBitrate(Config.STREAMING_BITRATE);
+        mQNMergeJob.setFps(Config.STREAMING_FPS);
         mQNMergeJob.setStretchMode(QNStretchMode.ASPECT_FILL);
 
         QNBackGround qnBackGround = new QNBackGround();
@@ -782,18 +820,16 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             if (mPkCandidatesFragment != null && !mPkCandidatesFragment.isHidden()) {
                 mPkCandidatesFragment.dismiss();
             }
-            mSignalClient.replyPk(info.getRoomId(), true);
-            mPkUserList.add(mPkRequesterInfo);
-            mIsPkMode = true;
-            mIsPkRequester = false;
-            createMergeJob();
+            mIsPkAccepted = true;
+            mSignalClient.replyPk(info.getRoomId(), mIsPkAccepted);
             dialog.dismiss();
         });
         refuseBtn.setOnClickListener(arg0 -> {
             if (mSignalClient == null) {
                 return;
             }
-            mSignalClient.replyPk(info.getRoomId(), false);
+            mIsPkAccepted = false;
+            mSignalClient.replyPk(info.getRoomId(), mIsPkAccepted);
             dialog.dismiss();
         });
     }
@@ -936,7 +972,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                         mLiveSettingFragment.resetFlashlightSetting();
                         mNeedResetFlashlight = false;
                     }
-                    mLiveSettingFragment.setFlashlightSettingEnabled(!mIsFontCamera);
+                    mLiveSettingFragment.setFlashlightSettingEnabled(!mIsFrontCamera);
                 }
 
                 @Override
@@ -966,7 +1002,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                 }
             });
         }
-        mLiveSettingFragment.show(getSupportFragmentManager(), LiveSettingFragment.TAG);
+        if (getSupportFragmentManager().findFragmentByTag(LiveSettingFragment.TAG) == null) {
+            mLiveSettingFragment.show(getSupportFragmentManager(), LiveSettingFragment.TAG);
+        }
     }
 
     @Override
@@ -978,12 +1016,14 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                 if (mLoadingDialog != null && mLoadingDialog.isShowing()) {
                     mLoadingDialog.dismiss();
                 }
-                if (mExecutor != null) {
+                if (mExecutor == null || mExecutor.isShutdown()) {
+                    mExecutor = Executors.newSingleThreadScheduledExecutor();
                     mExecutor.scheduleAtFixedRate(mAudienceNumGetter, 0, Config.GET_AUDIENCE_NUM_PERIOD, TimeUnit.SECONDS);
                 }
                 mEngine.publishTracks(mLocalTrackList);
                 updateUIAfterLiving();
                 if (mIsPkMode) {
+                    // PK 场景下需要创建合流任务并重新进行推流
                     createMergeJob();
                     mPkUserList.add(mTargetPkRoomInfo.getCreator());
                 }
@@ -1128,7 +1168,6 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
 
     @Override
     public void onCreateMergeJobSuccess(String mergeJobId) {
-        Log.i(TAG, "onCreateMergeJobSuccess : " + mergeJobId);
         Log.i(TAG, "合流任务创建成功：" + mergeJobId + " url = " + mQNMergeJob.getPublishUrl());
         mMergeJobId = mergeJobId;
         // PK 请求接受方停止单路转推
@@ -1291,17 +1330,48 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         }
 
         @Override
-        public void onPkRequestHandled(boolean isAccepted, String roomToken) {
+        public void onReplyPkSuccess() {
+            if (mIsPkAccepted) {
+                // 处理 PK 请求成功后的回调
+                // 作为 PK 请求的接受者，pkRoomId 即为自己的 roomId
+                mPkRoomId = mRoomId;
+                mPkUserList.add(mPkRequesterInfo);
+                mIsPkMode = true;
+                mIsPkRequester = false;
+                createMergeJob();
+            }
+            mIsPkAccepted = false;
+        }
+
+        @Override
+        public void onReplyPkFailed(int code, String reason) {
+            // 处理 PK 请求失败，失败后，无论同意还是拒绝 PK 请求，都将视为无效
+            switch (code) {
+                case ROOM_NOT_EXIST:
+                    ToastUtils.showShortToast(getString(R.string.toast_room_not_exist));
+                    break;
+                case ROOM_IN_PK:
+                    ToastUtils.showShortToast(getString(R.string.toast_room_in_pk));
+                    break;
+            }
+        }
+
+        @Override
+        public void onPkRequestHandled(boolean isAccepted, String pkRoomId, String roomToken) {
             if (isAccepted) {
+                // PK 请求成功被远端接受后回调处理
                 if (mEngine == null) {
                     return;
                 }
                 mTargetPkRoomToken = roomToken;
+                mPkRoomId = pkRoomId;
+                // 停止当前房间的单路转推任务
                 if (mForwardJob != null) {
                     mEngine.stopForwardJob(mForwardJob.getForwardJobId());
                     mForwardJob = null;
                     mIsForwardJobStreaming = false;
                 }
+                // 离开当前房间，并在 onRoomLeft() 回调中加入到 PK 主播的房间
                 mEngine.leaveRoom();
                 mIsPkRequester = true;
                 mIsPkMode = true;
@@ -1371,12 +1441,12 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     private void showBeautyPanel() {
-        hideBottomBts();
+        hideBottomBtns();
         showPanel(TAG_EFFECT);
     }
 
     private void showStickerPanel() {
-        hideBottomBts();
+        hideBottomBtns();
         showPanel(TAG_STICKER);
     }
 
@@ -1392,9 +1462,6 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             ft.setCustomAnimations(R.anim.push_down_in, R.anim.push_down_out);
             ft.hide(showingFragment).commit();
         }
-        if (!mChatBottomPanel.isPanelVisible()) {
-            showBottomBts();
-        }
     }
 
     @Override
@@ -1405,6 +1472,11 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             if (!super.dispatchTouchEvent(motionEvent)) {
                 // 如果当前抬起事件无人消费，说明点击在了空处，隐藏特效面板
                 hideEffectPanel();
+
+                // 隐藏聊天输入框并显示底部按钮
+                mChatBottomPanel.hidePanels();
+                showBottomBtns();
+
                 return false;
             }
             return true;
@@ -1412,7 +1484,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         return super.dispatchTouchEvent(motionEvent);
     }
 
-    private void hideBottomBts() {
+    private void hideBottomBtns() {
         mIMBtn.setVisibility(View.INVISIBLE);
         mBeautyBtn.setVisibility(View.INVISIBLE);
         mSwitchCameraBtn.setVisibility(View.INVISIBLE);
@@ -1421,9 +1493,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         mStartStreaming.setVisibility(View.INVISIBLE);
     }
 
-    private void showBottomBts() {
+    private void showBottomBtns() {
         if (mCurrentRoomState != QNRoomState.IDLE) {
-            setBottomBtsVisible(View.VISIBLE);
+            setBottomBtnsVisible(View.VISIBLE);
         } else {
             mBeautyBtn.setVisibility(View.VISIBLE);
             mSwitchCameraBtn.setVisibility(View.VISIBLE);
@@ -1432,7 +1504,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         }
     }
 
-    private void setBottomBtsVisible(int visible) {
+    private void setBottomBtnsVisible(int visible) {
         mIMBtn.setVisibility(visible);
         mBeautyBtn.setVisibility(visible);
         mSwitchCameraBtn.setVisibility(visible);
@@ -1675,7 +1747,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             public void onSendClick(String text, int type) {
                 final TextMessage content = TextMessage.obtain(text);
                 ChatroomKit.sendMessage(content);
-                setBottomBtsVisible(View.VISIBLE);
+                showBottomBtns();
             }
         });
         mChatBottomPanel.setBtnsVisible(View.INVISIBLE);
@@ -1690,6 +1762,22 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                 } else {
                     mChatBottomPanel.isShowInputAboveKeyboard(false);
                 }
+            }
+        });
+
+        View chatTouchView = findViewById(R.id.chat_list_touch_view);
+        chatTouchView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        mChatBottomPanel.hidePanels();
+                        showBottomBtns();
+                        break;
+                    default:
+                        break;
+                }
+                return false;
             }
         });
     }
@@ -1894,6 +1982,10 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                     listener.onSoftInputStatusChanged(visible, keyboardHeight);
                 }
                 isVisibleForLast = visible;
+
+                if (!isVisibleForLast && mChatBottomPanel.isInputPanelVisible()) {
+                    setBottomBtnsVisible(View.INVISIBLE);
+                }
             }
         });
     }
@@ -1908,6 +2000,6 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             mStreamingStopped = true;
             super.onBackPressed();
         }
-        setBottomBtsVisible(View.VISIBLE);
+        showBottomBtns();
     }
 }

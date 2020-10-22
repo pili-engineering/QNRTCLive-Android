@@ -1,7 +1,6 @@
 package com.qiniu.droid.rtc.live.demo.utils;
 
 import android.content.Context;
-import android.util.Log;
 import android.widget.Toast;
 
 public class ToastUtils {
@@ -18,6 +17,12 @@ public class ToastUtils {
 
     public static void showLongToast(String message) {
         showToast(message, Toast.LENGTH_LONG);
+    }
+
+    public static void cancel() {
+        if (sToast != null) {
+            sToast.cancel();
+        }
     }
 
     private static void showToast(String message, int duration) {
