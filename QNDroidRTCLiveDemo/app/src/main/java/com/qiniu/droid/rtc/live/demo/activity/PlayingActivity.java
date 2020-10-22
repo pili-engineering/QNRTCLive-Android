@@ -8,12 +8,15 @@ import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.MotionEvent;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.orzangleli.xdanmuku.DanmuContainerView;
@@ -44,6 +47,7 @@ import com.qiniu.droid.rtc.live.demo.im.model.NeedLoginEvent;
 import com.qiniu.droid.rtc.live.demo.im.panel.BottomPanelFragment;
 import com.qiniu.droid.rtc.live.demo.im.panel.InputPanel;
 import com.qiniu.droid.rtc.live.demo.model.RoomInfo;
+import com.qiniu.droid.rtc.live.demo.model.RoomType;
 import com.qiniu.droid.rtc.live.demo.model.UserInfo;
 import com.qiniu.droid.rtc.live.demo.utils.AppUtils;
 import com.qiniu.droid.rtc.live.demo.utils.BarUtils;
@@ -59,8 +63,10 @@ import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import de.greenrobot.event.EventBus;
+import io.rong.imlib.IRongCallback;
 import io.rong.imlib.RongIMClient;
 import io.rong.imlib.model.Conversation;
 import io.rong.imlib.model.MessageContent;
@@ -73,8 +79,10 @@ import static com.qiniu.droid.rtc.live.demo.im.message.ChatroomSignal.SIGNAL_STR
 
 public class PlayingActivity extends BaseActivity implements Handler.Callback {
     private static final String TAG = "PlayingActivity";
+    private static final int DEFAULT_RECONNECT_TIMES = 3;
 
     private TextView mTvRoomName;
+    private ImageView mIvRoomAudience;
     private TextView mTvRoomAudience;
     private ImageView mIvClose;
     private View mAnchorLeftView;
@@ -88,9 +96,13 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
     private RoomInfo mRoomInfo;
 
     private ScheduledExecutorService mExecutor;
-    private ScheduledExecutorService mReconnectExecutor;
 
     private boolean mStreamerIsBackground;
+    private Toast mAudienceNumberToast;
+
+    private Handler mMainHandler;
+
+    private AtomicInteger mReconnectTime = new AtomicInteger(0);
 
     private final Runnable mAudienceNumGetter = new Runnable() {
         @Override
@@ -100,10 +112,10 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                     @Override
                     public void onRequestSuccess(String responseMsg) {
                         Log.i(TAG, "get audience num success : " + responseMsg);
-                        RoomInfo roomInfo = new Gson().fromJson(responseMsg, RoomInfo.class);
+                        mRoomInfo = new Gson().fromJson(responseMsg, RoomInfo.class);
                         runOnUiThread(() -> {
-                            if (mTvRoomAudience != null && roomInfo != null) {
-                                mTvRoomAudience.setText(String.valueOf(roomInfo.getAudienceNumber()));
+                            if (mTvRoomAudience != null && mRoomInfo != null) {
+                                mTvRoomAudience.setText(String.valueOf(mRoomInfo.getAudienceNumber()));
                             }
                         });
                     }
@@ -121,23 +133,6 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
         }
     };
 
-    private final Runnable mReconnectRunnable = new Runnable() {
-        @Override
-        public void run() {
-            runOnUiThread(() -> {
-                if (mVideoView != null && mPlayUrl != null && NetworkUtils.isConnected()) {
-                    mVideoView.stopPlayback();
-                    initPlayer(mPlayUrl);
-                    mVideoView.start();
-                    if (mReconnectExecutor != null && !mReconnectExecutor.isShutdown()) {
-                        mReconnectExecutor.shutdown();
-                    }
-                }
-            });
-
-        }
-    };
-
     @Override
     protected int getLayoutId() {
         return R.layout.activity_playing;
@@ -148,6 +143,7 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
         initStatusBar();
         mAnchorLeftView = findViewById(R.id.view_playing_anchor_left);
         mTvRoomName = findViewById(R.id.tv_playing_room_name);
+        mIvRoomAudience = findViewById(R.id.iv_playing_audience);
         mTvRoomAudience = findViewById(R.id.tv_playing_room_audience);
         mIvClose = findViewById(R.id.iv_playing_close);
         mVideoView = findViewById(R.id.playing_player_view);
@@ -172,10 +168,13 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
     @Override
     protected void initEvent() {
         mIvClose.setOnClickListener(this);
+        mIvRoomAudience.setOnClickListener(this);
+        mTvRoomAudience.setOnClickListener(this);
     }
 
     @Override
     protected void initData() {
+        mMainHandler = new Handler();
         Intent intent = getIntent();
         mUserInfo = SharedPreferencesUtils.getUserInfo(AppUtils.getApp());
         mRoomInfo = intent.getParcelableExtra(Constants.INTENT_ROOM_INFO);
@@ -225,9 +224,32 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                 finish();
                 leaveRoom();
                 break;
+            case R.id.iv_playing_audience:
+            case R.id.tv_playing_room_audience:
+                showAudienceNumberToast();
+                break;
             default:
                 break;
         }
+    }
+
+    private void showAudienceNumberToast() {
+        ToastUtils.cancel();
+        String message = "当前观看人数：" + mTvRoomAudience.getText() + "人";
+        if (mAudienceNumberToast == null) {
+            mAudienceNumberToast = Toast.makeText(this, message, Toast.LENGTH_SHORT);
+            TextView textView = new TextView(this);
+            textView.setText(message);
+            textView.setTextColor(Color.WHITE);
+            textView.setBackgroundResource(R.drawable.bg_transparent25_radius7);
+            textView.setPadding(25, 10, 25, 10);
+            mAudienceNumberToast.setView(textView);
+            mAudienceNumberToast.setGravity(Gravity.CENTER, 0, 0);
+        } else {
+            TextView textView = (TextView) mAudienceNumberToast.getView();
+            textView.setText(message);
+        }
+        mAudienceNumberToast.show();
     }
 
     @Override
@@ -255,30 +277,29 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
             mExecutor.shutdown();
             mExecutor = null;
         }
+        if (mAudienceNumberToast != null) {
+            mAudienceNumberToast.cancel();
+        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mReconnectExecutor != null) {
-            mReconnectExecutor.shutdown();
-            mReconnectExecutor = null;
-        }
         if (mVideoView != null) {
             mVideoView.stopPlayback();
         }
         new Thread(() -> QNAppServer.getInstance().leaveRoom(mUserInfo.getUserId(), mRoomInfo.getId(),
                 new QNAppServer.OnRequestResultCallback() {
-            @Override
-            public void onRequestSuccess(String responseMsg) {
+                    @Override
+                    public void onRequestSuccess(String responseMsg) {
 
-            }
+                    }
 
-            @Override
-            public void onRequestFailed(int code, String reason) {
+                    @Override
+                    public void onRequestFailed(int code, String reason) {
 
-            }
-        })).start();
+                    }
+                })).start();
         ChatroomKit.quitChatRoom(new RongIMClient.OperationCallback() {
             @Override
             public void onSuccess() {
@@ -287,7 +308,21 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                 if (DataInterface.isLogin()) {
                     ChatroomUserQuit userQuit = new ChatroomUserQuit();
                     userQuit.setId(ChatroomKit.getCurrentUser().getUserId());
-                    ChatroomKit.sendMessage(userQuit);
+                    ChatroomKit.sendMessage(userQuit, new IRongCallback.ISendMessageCallback() {
+                        @Override
+                        public void onAttached(io.rong.imlib.model.Message message) {
+                        }
+
+                        @Override
+                        public void onSuccess(io.rong.imlib.model.Message message) {
+                            DataInterface.logout();
+                        }
+
+                        @Override
+                        public void onError(io.rong.imlib.model.Message message, RongIMClient.ErrorCode errorCode) {
+                            DataInterface.logout();
+                        }
+                    });
                 }
             }
 
@@ -306,6 +341,8 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
         // 1 -> hw codec enable, 0 -> disable [recommended]
         options.setInteger(AVOptions.KEY_MEDIACODEC, AVOptions.MEDIA_CODEC_SW_DECODE);
         options.setInteger(AVOptions.KEY_LIVE_STREAMING, 1);
+        // 快开模式，启用后会加快该播放器实例再次打开相同协议的视频流的速度
+        options.setInteger(AVOptions.KEY_FAST_OPEN, 1);
         mVideoView.setAVOptions(options);
 
         // Set some listeners
@@ -333,12 +370,9 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                     break;
                 case PLOnInfoListener.MEDIA_INFO_VIDEO_RENDERING_START:
                     Log.i(TAG, "Response: " + mVideoView.getResponseInfo());
+                    mReconnectTime.getAndSet(0);
                     if (mLoadingDialog.isShowing()) {
                         mLoadingDialog.dismiss();
-                    }
-                    if (mReconnectExecutor != null && !mReconnectExecutor.isShutdown()) {
-                        mReconnectExecutor.shutdown();
-                        mReconnectExecutor = null;
                     }
                     if (!mChatBottomPanel.isPanelVisible()) {
                         mIvClose.setVisibility(View.VISIBLE);
@@ -349,6 +383,9 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                     break;
                 case PLOnInfoListener.MEDIA_INFO_VIDEO_FRAME_RENDERING:
                     Log.i(TAG, "video frame rendering, ts = " + extra);
+                    if (mLoadingDialog.isShowing()) {
+                        mLoadingDialog.dismiss();
+                    }
                     break;
                 case PLOnInfoListener.MEDIA_INFO_AUDIO_FRAME_RENDERING:
                     Log.i(TAG, "audio frame rendering, ts = " + extra);
@@ -387,13 +424,21 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
         Log.e(TAG, "Error happened, errorCode = " + errorCode);
         switch (errorCode) {
             case PLOnErrorListener.ERROR_CODE_IO_ERROR:
-                if (mReconnectExecutor == null || mReconnectExecutor.isShutdown()) {
-                    mReconnectExecutor = Executors.newSingleThreadScheduledExecutor();
-                    mReconnectExecutor.scheduleAtFixedRate(mReconnectRunnable, 2, Config.PLAYER_RECONNECT_PERIOD, TimeUnit.SECONDS);
+                if (!NetworkUtils.isConnected()) {
+                    ToastUtils.showShortToast(getResources().getString(R.string.toast_network_connect_failed));
+                } else {
+                    handleReconnect();
                 }
-                return false;
+                break;
             case PLOnErrorListener.ERROR_CODE_OPEN_FAILED:
-                ToastUtils.showShortToast(getResources().getString(R.string.toast_player_open_failed));
+                if (!NetworkUtils.isConnected()) {
+                    ToastUtils.showShortToast(getResources().getString(R.string.toast_network_connect_failed));
+                    break;
+                }
+                if (!handleReconnect()) {
+                    ToastUtils.showShortToast(getResources().getString(R.string.toast_player_open_failed));
+                    finish();
+                }
                 break;
             default:
                 ToastUtils.showShortToast("位置错误!");
@@ -417,6 +462,22 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                     public void onRequestFailed(int code, String reason) {
                     }
                 })).start();
+    }
+
+    private boolean handleReconnect() {
+        if (mReconnectTime.get() < DEFAULT_RECONNECT_TIMES) {
+            mMainHandler.postDelayed(() -> {
+                if (mVideoView != null && mPlayUrl != null) {
+                    mVideoView.stopPlayback();
+                    initPlayer(mPlayUrl);
+                    mVideoView.start();
+                }
+            }, 2000);
+            mReconnectTime.getAndIncrement();
+            return true;
+        }
+        mReconnectTime.getAndSet(0);
+        return false;
     }
 
     /**
@@ -508,6 +569,30 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                 mChatBottomPanel.isShowInputAboveKeyboard(false);
             }
         });
+
+        // 添加点击事件，隐藏聊天输入框和礼物页面
+        View playingLayout = findViewById(R.id.playing_layout);
+        playingLayout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mChatBottomPanel.hidePanels();
+            }
+        });
+
+        View chatTouchView = findViewById(R.id.chat_list_touch_view);
+        chatTouchView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        mChatBottomPanel.hidePanels();
+                        break;
+                    default:
+                        break;
+                }
+                return false;
+            }
+        });
     }
 
     //500毫秒后做检查，如果没有继续点击了，发消息
@@ -572,19 +657,28 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
     }
 
     private void onStreamerSwitchToBackstage() {
+        if (RoomType.PK.getValue().equalsIgnoreCase(mRoomInfo.getStatus())) {
+            ToastUtils.showLongToast("您所观看的主播暂时离开！！！");
+            return;
+        }
+
         if (mLoadingDialog != null && mLoadingDialog.isShowing()) {
             mLoadingDialog.dismiss();
         }
         mStreamerIsBackground = true;
         Log.e(TAG, "onStreamerSwitchToBackstage");
-        ToastUtils.showLongToast("主播暂时离开！！！");
+        ToastUtils.showLongToast("您所观看的主播暂时离开！！！");
         mAnchorLeftView.setVisibility(View.VISIBLE);
     }
 
     private void onStreamerBackToLiving() {
+        if (RoomType.PK.getValue().equalsIgnoreCase(mRoomInfo.getStatus())) {
+            ToastUtils.showLongToast("您所观看的主播已经回来！！！");
+            return;
+        }
         mStreamerIsBackground = false;
         Log.e(TAG, "onStreamerBackToLiving");
-        ToastUtils.showLongToast("主播已经回来！！！");
+        ToastUtils.showLongToast("您所观看的主播已经回来！！！");
         mAnchorLeftView.setVisibility(View.GONE);
     }
 

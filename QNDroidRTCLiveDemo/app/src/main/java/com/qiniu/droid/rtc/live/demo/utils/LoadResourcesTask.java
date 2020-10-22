@@ -12,6 +12,7 @@ public class LoadResourcesTask extends AsyncTask<String, Void, Boolean> {
     public interface ILoadResourcesCallback {
         Context getContext();
         void onStartTask();
+        void onProgress(float progress,String currentFileName);
         void onEndTask(boolean result);
     }
 
@@ -27,7 +28,8 @@ public class LoadResourcesTask extends AsyncTask<String, Void, Boolean> {
         File dstFile = mCallback.get().getContext().getExternalFilesDir("assets");
         FileUtils.clearDir(new File(dstFile, path));
         try {
-            FileUtils.copyAssets(mCallback.get().getContext().getAssets(), path, dstFile.getAbsolutePath());
+            FileUtils.copyAssets(mCallback.get().getContext().getAssets(), path, dstFile.getAbsolutePath(),
+                    (progress, currentFileName) -> mCallback.get().onProgress(progress,currentFileName));
             return true;
         } catch (IOException e) {
             e.printStackTrace();

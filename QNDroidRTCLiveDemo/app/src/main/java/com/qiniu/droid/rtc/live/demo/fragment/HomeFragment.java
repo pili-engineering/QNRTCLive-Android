@@ -44,10 +44,6 @@ public class HomeFragment extends Fragment {
     private TextView mEmptyListTip;
     private LiveRoomListAdapter mListAdapter;
 
-    private ScheduledExecutorService mExecutor;
-
-    private final Runnable mRefreshRoomsRunnable = this::requestData;
-
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
@@ -61,41 +57,9 @@ public class HomeFragment extends Fragment {
     }
 
     @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-        requestData();
-    }
-
-    @Override
     public void onResume() {
         super.onResume();
-        handleDataRefreshing();
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-        if (mExecutor != null) {
-            mExecutor.shutdown();
-            mExecutor = null;
-        }
-    }
-
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        if (mExecutor != null) {
-            mExecutor.shutdown();
-            mExecutor = null;
-        }
-    }
-
-    private void handleDataRefreshing() {
-        if (mExecutor == null || mExecutor.isShutdown()) {
-            mExecutor = Executors.newSingleThreadScheduledExecutor();
-            mExecutor.scheduleAtFixedRate(mRefreshRoomsRunnable, Config.REFRESH_LIVE_ROOMS_INITIAL_DELAY,
-                    Config.REFRESH_LIVE_ROOMS_PERIOD, TimeUnit.SECONDS);
-        }
+        requestData();
     }
 
     private void requestData() {
@@ -152,7 +116,7 @@ public class HomeFragment extends Fragment {
         }
         mListAdapter.setData(roomInfos);
         mListAdapter.notifyDataSetChanged();
-        if (roomInfos.size() == 0) {
+        if (roomInfos.isEmpty()) {
             mRecyclerView.setVisibility(View.GONE);
             mEmptyListTip.setVisibility(View.VISIBLE);
         } else {

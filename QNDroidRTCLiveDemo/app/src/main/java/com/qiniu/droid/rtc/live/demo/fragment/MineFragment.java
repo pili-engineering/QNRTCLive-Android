@@ -2,6 +2,7 @@ package com.qiniu.droid.rtc.live.demo.fragment;
 
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,22 +14,25 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.gson.Gson;
+import com.qiniu.droid.rtc.live.demo.BuildConfig;
 import com.qiniu.droid.rtc.live.demo.R;
+import com.qiniu.droid.rtc.live.demo.activity.FeedbackActivity;
 import com.qiniu.droid.rtc.live.demo.activity.LoginActivity;
 import com.qiniu.droid.rtc.live.demo.activity.UserAgreementActivity;
 import com.qiniu.droid.rtc.live.demo.activity.WebActivity;
 import com.qiniu.droid.rtc.live.demo.model.UserInfo;
 import com.qiniu.droid.rtc.live.demo.utils.AppUtils;
+import com.qiniu.droid.rtc.live.demo.utils.PermissionChecker;
 import com.qiniu.droid.rtc.live.demo.utils.QNAppServer;
 import com.qiniu.droid.rtc.live.demo.utils.SharedPreferencesUtils;
 import com.qiniu.droid.rtc.live.demo.utils.ToastUtils;
 import com.qiniu.droid.rtc.live.demo.utils.Utils;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 
 public class MineFragment extends Fragment implements View.OnClickListener {
 
@@ -36,9 +40,11 @@ public class MineFragment extends Fragment implements View.OnClickListener {
 
     private ImageView mIvAvater;
     private TextView mTvName;
+    private TextView mTvVersionCode;
     private ImageView mIvEditName;
     private LinearLayout mLlQiniuRtc;
     private LinearLayout mLlUserAgreement;
+    private LinearLayout mLlUserFeedback;
     private LinearLayout mLlCall;
     private LinearLayout mLlLogout;
 
@@ -49,19 +55,27 @@ public class MineFragment extends Fragment implements View.OnClickListener {
         View view = inflater.inflate(R.layout.fragment_mine, container, false);
         mIvAvater = view.findViewById(R.id.iv_mine_avater);
         mTvName = view.findViewById(R.id.tv_mine_name);
+        mTvVersionCode = view.findViewById(R.id.version_code_text);
         mIvEditName = view.findViewById(R.id.iv_mine_edit_name);
         mLlQiniuRtc = view.findViewById(R.id.ll_mine_qiniu_rtc);
         mLlUserAgreement = view.findViewById(R.id.ll_mine_user_agreement);
+        mLlUserFeedback = view.findViewById(R.id.ll_mine_user_feedback);
         mLlCall = view.findViewById(R.id.ll_mine_call);
         mLlLogout = view.findViewById(R.id.ll_mine_logout);
         initEvent();
         return view;
     }
 
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+    }
+
     private void initEvent() {
         mIvEditName.setOnClickListener(this);
         mLlQiniuRtc.setOnClickListener(this);
         mLlUserAgreement.setOnClickListener(this);
+        mLlUserFeedback.setOnClickListener(this);
         mLlCall.setOnClickListener(this);
         mLlLogout.setOnClickListener(this);
     }
@@ -77,6 +91,7 @@ public class MineFragment extends Fragment implements View.OnClickListener {
         mUserInfo = SharedPreferencesUtils.getUserInfo(AppUtils.getApp());
         mIvAvater.setImageResource(Utils.getUserAvaterResId(mUserInfo.getUserId()));
         mTvName.setText(mUserInfo == null ? "" : mUserInfo.getNickName());
+        mTvVersionCode.setText(String.format(getString(R.string.version_code_text), BuildConfig.VERSION_NAME));
     }
 
     @Override
@@ -128,6 +143,12 @@ public class MineFragment extends Fragment implements View.OnClickListener {
                 // 用户协议
                 startActivity(new Intent(getContext(), UserAgreementActivity.class));
                 break;
+            case R.id.ll_mine_user_feedback:
+                // 用户反馈
+                if (isPermissionOK()) {
+                    startActivity(new Intent(getContext(), FeedbackActivity.class));
+                }
+                break;
             case R.id.ll_mine_call:
                 // 立即咨询
                 Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + HOTLINE));
@@ -161,4 +182,12 @@ public class MineFragment extends Fragment implements View.OnClickListener {
         }
     }
 
+    private boolean isPermissionOK() {
+        PermissionChecker checker = new PermissionChecker(getActivity());
+        boolean isPermissionOK = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || checker.checkPermission();
+        if (!isPermissionOK) {
+            ToastUtils.showShortToast("Some permissions is not approved !!!");
+        }
+        return isPermissionOK;
+    }
 }

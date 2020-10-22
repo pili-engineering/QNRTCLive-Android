@@ -26,15 +26,12 @@
         android:textSize="18dp"
         android:textStyle="bold" />
 
-    <Button
-        android:id="@+id/bt_start"
-        android:layout_width="200dp"
-        android:layout_height="50dp"
+    <com.qiniu.droid.rtc.live.demo.view.TipProgressBar
+        android:id="@+id/progressbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true"
-        android:layout_marginBottom="60dp"
-        android:enabled="false"
-        android:text="开始"
-        android:textColor="@android:color/white" />
+        android:layout_margin="60dp" />
 
 </RelativeLayout>

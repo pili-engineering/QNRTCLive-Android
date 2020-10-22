@@ -16,7 +16,7 @@ public class RoomInfo implements Parcelable {
     String playUrl;
     String status;
     int audienceNumber;
-    UserInfo pkStreamer;
+    UserInfo pkAnchor;
 
     public RoomInfo() {
 
@@ -29,7 +29,7 @@ public class RoomInfo implements Parcelable {
         playUrl = in.readString();
         status = in.readString();
         audienceNumber = in.readInt();
-        pkStreamer = in.readParcelable(UserInfo.class.getClassLoader());
+        pkAnchor = in.readParcelable(UserInfo.class.getClassLoader());
     }
 
     public String getId() {
@@ -80,12 +80,12 @@ public class RoomInfo implements Parcelable {
         this.audienceNumber = audienceNumber;
     }
 
-    public UserInfo getPkStreamer() {
-        return pkStreamer;
+    public UserInfo getPkAnchor() {
+        return pkAnchor;
     }
 
-    public void setPkStreamer(UserInfo pkStreamer) {
-        this.pkStreamer = pkStreamer;
+    public void setPkAnchor(UserInfo pkAnchor) {
+        this.pkAnchor = pkAnchor;
     }
 
     public static final Creator<RoomInfo> CREATOR = new Creator<RoomInfo>() {
@@ -113,7 +113,7 @@ public class RoomInfo implements Parcelable {
         dest.writeString(playUrl);
         dest.writeString(status);
         dest.writeInt(audienceNumber);
-        dest.writeParcelable(pkStreamer, flags);
+        dest.writeParcelable(pkAnchor, flags);
     }
 
     @Override
@@ -127,11 +127,11 @@ public class RoomInfo implements Parcelable {
                 Objects.equals(getCreator(), roomInfo.getCreator()) &&
                 Objects.equals(getPlayUrl(), roomInfo.getPlayUrl()) &&
                 Objects.equals(getStatus(), roomInfo.getStatus()) &&
-                Objects.equals(getPkStreamer(), roomInfo.getPkStreamer());
+                Objects.equals(getPkAnchor(), roomInfo.getPkAnchor());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId(), getName(), getCreator(), getPlayUrl(), getStatus(), getAudienceNumber(), getPkStreamer());
+        return Objects.hash(getId(), getName(), getCreator(), getPlayUrl(), getStatus(), getAudienceNumber(), getPkAnchor());
     }
 }

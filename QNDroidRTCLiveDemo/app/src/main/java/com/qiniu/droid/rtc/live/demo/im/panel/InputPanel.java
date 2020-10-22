@@ -150,7 +150,7 @@ public class InputPanel extends LinearLayout {
         }
     }
 
-    private void hideKeyboard() {
+    public void hideKeyboard() {
         InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.hideSoftInputFromWindow(getWindowToken(), 0);
     }

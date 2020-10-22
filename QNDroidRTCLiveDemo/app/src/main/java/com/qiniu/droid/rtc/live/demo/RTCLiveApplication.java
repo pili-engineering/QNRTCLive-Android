@@ -30,6 +30,7 @@ public class RTCLiveApplication extends Application {
 
         QNRTCEnv.init(getApplicationContext());
         QNRTCEnv.setDnsManager(Utils.getDefaultDnsManager(getApplicationContext()));
+        QNRTCEnv.setLogFileEnabled(true);
 
         DataInterface.init(this);
         ChatroomKit.init(this, DataInterface.APP_KEY);

@@ -10,18 +10,23 @@
     <string name="setting_on_text">开启</string>
     <string name="setting_off_text">关闭</string>
 
-    <string name="publish_url">rtmp://pili-publish.qnsdk.com/sdk-live/%1$s</string>
+    <string name="publish_url">rtmp://pili-publish.qnsdk.com/sdk-live/%1$s?serialnum=%2$d</string>
     <string name="channel_error_title">连接错误</string>
     <string name="ok">OK</string>
 
     <string name="title_rtc">连麦互动</string>
     <string name="title_pk_candidates">可以 PK 的主播</string>
+    <string name="title_user_feedback">用户反馈</string>
+    <string name="version_code_text">牛互动 v%1$s</string>
     <string name="quit_pk_button">退出 PK</string>
     <string name="remote_refused_pk_request">主播拒绝了你的 PK 请求</string>
     <string name="confirm_be_refused">好吧 主播好残忍</string>
     <string name="request_pk_text">%1$s 请求 PK</string>
     <string name="accept_pk">开始 PK</string>
     <string name="refuse_pk">拒绝 TA</string>
+
+    <string name="hint_user_feedback">请详细描述您在使用过程中遇到的问题</string>
+    <string name="text_submit_feedback">提交</string>
 
     <string name="im_connect_error">连接即时通讯失败</string>
 
@@ -43,6 +48,8 @@
     <string name="toast_room_in_pk">主播在 PK 中，无法发起接受新的 PK 请求</string>
     <string name="toast_room_not_in_pk">房间未在 PK</string>
     <string name="toast_player_open_failed">播放器打开失败，请确认主播当前的直播状态</string>
+    <string name="toast_network_connect_failed">网络连接失败，请检查当前网络状态</string>
+    <string name="toast_picture_upload_limit">最多上传 3 张图片哦</string>
 
     <string name="hint_modify_nick_name">请输入昵称</string>
     <string name="hint_modify_room_name">请输入房间名称</string>

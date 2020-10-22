@@ -65,12 +65,25 @@ public class QNSignalClient implements IWebSocketListener {
         void onPkRequestLaunched(PkRequestInfo requestInfo);
 
         /**
+         * 处理 PK 请求成功回调
+         */
+        void onReplyPkSuccess();
+
+        /**
+         * 处理 PK 请求失败回调
+         *
+         * @param code 错误码
+         * @param reason 错误信息
+         */
+        void onReplyPkFailed(int code, String reason);
+
+        /**
          * 远端 PK 请求处理回调通知
          *
          * @param isAccepted 是否接受
          * @param roomToken 远端房间 roomToken
          */
-        void onPkRequestHandled(boolean isAccepted, String roomToken);
+        void onPkRequestHandled(boolean isAccepted, String pkRoomId, String roomToken);
 
         /**
          * 本地结束 PK 成功信令返回
@@ -327,14 +340,17 @@ public class QNSignalClient implements IWebSocketListener {
                 PkRequestInfo requestInfo = new Gson().fromJson(msgValue, PkRequestInfo.class);
                 mOnSignalClientListener.onPkRequestLaunched(requestInfo);
             } else if (method == QNSignalMethod.ANSWER_PK_RES) {
-                if (errorCode != QNSignalErrorCode.SUCCESS) {
+                if (errorCode == QNSignalErrorCode.SUCCESS) {
+                    mOnSignalClientListener.onReplyPkSuccess();
+                } else {
                     Log.e(TAG, "reply pk failed : " + json.optString(Config.KEY_ERROR));
-                    mOnSignalClientListener.onError(errorCode, json.optString(Config.KEY_ERROR));
+                    mOnSignalClientListener.onReplyPkFailed(errorCode, json.optString(Config.KEY_ERROR));
                 }
             } else if (method == QNSignalMethod.ON_PK_ANSWER) {
                 boolean isAccepted = json.optBoolean("accepted");
                 String roomToken = isAccepted ? json.optString("rtcRoomToken") : null;
-                mOnSignalClientListener.onPkRequestHandled(isAccepted, roomToken);
+                String rtcRoom = json.optString("rtcRoom");
+                mOnSignalClientListener.onPkRequestHandled(isAccepted, rtcRoom, roomToken);
             } else if (method == QNSignalMethod.END_PK_RES) {
                 if (errorCode == QNSignalErrorCode.SUCCESS) {
                     mOnSignalClientListener.onPkEnd();

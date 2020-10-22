@@ -74,6 +74,19 @@ public class BottomPanelFragment extends Fragment {
         }
     }
 
+    public void hidePanels() {
+        if (inputPanel.getVisibility() == View.VISIBLE || giftPanel.getVisibility() == View.VISIBLE) {
+            inputPanel.setVisibility(View.GONE);
+            giftPanel.setVisibility(View.GONE);
+            buttonPanel.setVisibility(View.VISIBLE);
+            CommonUtils.hideInputMethod(getActivity(), inputPanel);
+
+            if (mGiftPanelListener != null) {
+                mGiftPanelListener.onPanelClose();
+            }
+        }
+    }
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_bottombar, container);

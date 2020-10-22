@@ -218,15 +218,23 @@ public class ChatroomKit {
         sendMessage(Message.obtain(currentRoomId, Conversation.ConversationType.CHATROOM, msgContent));
     }
 
-    public static void sendMessage(Message msg) {
+    public static void sendMessage(final MessageContent msgContent, IRongCallback.ISendMessageCallback callback) {
+        sendMessage(Message.obtain(currentRoomId, Conversation.ConversationType.CHATROOM, msgContent), callback);
+    }
+
+    public static void sendMessage(Message msg, IRongCallback.ISendMessageCallback callback) {
         if (currentUser == null) {
             throw new RuntimeException("currentUser should not be null.");
         }
 
-        if (msg.getContent() != null){
-            msg.getContent().setUserInfo (currentUser);
+        if (msg.getContent() != null) {
+            msg.getContent().setUserInfo(currentUser);
         }
-        RongIMClient.getInstance().sendMessage(msg, null, null, new IRongCallback.ISendMessageCallback() {
+        RongIMClient.getInstance().sendMessage(msg, null, null, callback);
+    }
+
+    public static void sendMessage(Message msg) {
+        sendMessage(msg, new IRongCallback.ISendMessageCallback() {
             @Override
             public void onAttached(Message message) {
 
@@ -235,7 +243,6 @@ public class ChatroomKit {
             @Override
             public void onSuccess(Message message) {
                 handleEvent(MESSAGE_SENT, message);
-
             }
 
             @Override
