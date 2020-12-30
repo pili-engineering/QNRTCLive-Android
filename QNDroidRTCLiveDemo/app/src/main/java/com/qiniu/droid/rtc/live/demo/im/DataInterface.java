@@ -46,7 +46,7 @@ public class DataInterface {
     public static final String FILE_SERVER = "up.qbox.me";
 
     /*appkey   需要改成开发者自己的appKey*/
-    public static final String APP_KEY = "25wehl3u20c0w";
+    public static final String APP_KEY = "qd46yzrfqx8xf";
 
     private static final String CONFIG_NAME = "chatroom_config";
 
