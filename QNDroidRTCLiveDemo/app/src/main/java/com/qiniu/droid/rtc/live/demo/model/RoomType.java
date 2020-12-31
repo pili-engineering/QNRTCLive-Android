@@ -8,7 +8,11 @@ public enum RoomType {
     /**
      * 连麦 PK 场景
      */
-    PK("pk");
+    PK("pk"),
+    /**
+     * 语音聊天室场景
+     */
+    VOICE_LIVE("voiceLive");
 
     private final String mValue;
 

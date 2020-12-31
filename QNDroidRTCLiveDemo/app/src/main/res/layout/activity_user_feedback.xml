@@ -9,10 +9,11 @@
     <TextView
         android:id="@+id/user_feedback_title"
         android:layout_width="0dp"
-        android:layout_height="50dp"
+        android:layout_height="56dp"
         android:background="@color/dark_blue"
         android:gravity="center"
         android:text="@string/title_user_feedback"
+        android:textSize="18sp"
         android:textColor="@android:color/white"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

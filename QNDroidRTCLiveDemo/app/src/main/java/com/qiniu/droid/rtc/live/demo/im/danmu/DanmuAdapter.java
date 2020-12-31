@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.bumptech.glide.Glide;
 import com.orzangleli.xdanmuku.XAdapter;
 import com.qiniu.droid.rtc.live.demo.R;
 
@@ -40,7 +41,10 @@ public class DanmuAdapter extends XAdapter<DanmuEntity> {
             holder = (ViewHolder) convertView.getTag();
         }
 
-        holder.image.setImageURI(danmuEntity.getPortrait());
+        Glide.with(context)
+                .load(danmuEntity.getPortrait())
+                .centerInside()
+                .into(holder.image);
         holder.content.setText(danmuEntity.getContent());
         // holder.content.setTextColor(Color.rgb(random.nextInt(256), random.nextInt(256), random.nextInt(256)));
         holder.tvName.setText(danmuEntity.getName());

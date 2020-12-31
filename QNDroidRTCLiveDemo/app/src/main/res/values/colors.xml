@@ -36,6 +36,9 @@
 
     <color name="translucent">#66000000</color>
     <color name="playing_background">#212121</color>
+
+    <color name="audio_status_bar">#5E409D</color>
+    <color name="audio_hint_text_color">#838383</color>
     
     <color name="colorEtHint">#C6C6C6</color>
 </resources>

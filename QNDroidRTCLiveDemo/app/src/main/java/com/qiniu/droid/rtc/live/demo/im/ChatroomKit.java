@@ -222,6 +222,10 @@ public class ChatroomKit {
         sendMessage(Message.obtain(currentRoomId, Conversation.ConversationType.CHATROOM, msgContent), callback);
     }
 
+    public static void sendSignalMessage(String signalTargetId, final MessageContent msgContent) {
+        sendMessage(Message.obtain(signalTargetId, Conversation.ConversationType.PRIVATE, msgContent));
+    }
+
     public static void sendMessage(Message msg, IRongCallback.ISendMessageCallback callback) {
         if (currentUser == null) {
             throw new RuntimeException("currentUser should not be null.");

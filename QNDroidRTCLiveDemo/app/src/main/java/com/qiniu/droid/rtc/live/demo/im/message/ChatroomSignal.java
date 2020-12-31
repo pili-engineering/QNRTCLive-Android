@@ -15,10 +15,6 @@ import io.rong.imlib.model.UserInfo;
 
 @MessageTag(value = "RC:Chatroom:Signal", flag = 3)
 public class ChatroomSignal extends MessageContent {
-    //主播切后台
-    public static String SIGNAL_STREAMER_SWITCH_TO_BACKSTAGE = "streamer_switch_to_backstage";
-    //主播从后台回到直播
-    public static String SIGNAL_STREAMER_BACK_TO_LIVING = "streamer_back_to_living";
 
     public ChatroomSignal() {
     }

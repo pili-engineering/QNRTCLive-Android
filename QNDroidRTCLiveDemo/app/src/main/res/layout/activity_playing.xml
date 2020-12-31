@@ -14,14 +14,6 @@
         android:layout_height="match_parent"
         android:layout_centerInParent="true" />
 
-    <ImageView
-        android:id="@+id/view_playing_anchor_left"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:src="@drawable/bg_playing_anchor_left"
-        android:visibility="gone" />
-
     <RelativeLayout
         android:id="@+id/rl_playing_bar"
         android:layout_width="match_parent"
@@ -115,17 +107,18 @@
         android:id="@+id/heart_layout"
         android:layout_width="126dp"
         android:layout_height="match_parent"
-        android:layout_above="@+id/bottom_layout"
         android:layout_alignParentEnd="true"
-        android:layout_marginBottom="4dp"
+        android:layout_alignParentBottom="true"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="60dp"
         android:visibility="invisible" />
 
     <LinearLayout
         android:id="@+id/bottom_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_margin="16dp"
         android:layout_alignParentBottom="true"
-        android:layout_gravity="bottom"
         android:fitsSystemWindows="true"
         android:orientation="horizontal">
 
@@ -134,18 +127,16 @@
             android:name="com.qiniu.droid.rtc.live.demo.im.panel.BottomPanelFragment"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_margin="8dp"
-            android:layout_weight="0.9"
+            android:layout_weight="0.89"
             android:visibility="invisible" />
 
         <ImageView
             android:id="@+id/iv_playing_close"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_margin="8dp"
-            android:layout_marginEnd="20dp"
-            android:padding="3dp"
-            android:src="@drawable/ic_close"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="0.11"
+            android:background="@color/transparent"
+            android:src="@drawable/ic_audience_quit"
             android:visibility="invisible" />
     </LinearLayout>
 </RelativeLayout>

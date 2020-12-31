@@ -14,6 +14,7 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 
+import com.bumptech.glide.Glide;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.gson.Gson;
 import com.qiniu.droid.rtc.live.demo.BuildConfig;
@@ -22,13 +23,13 @@ import com.qiniu.droid.rtc.live.demo.activity.FeedbackActivity;
 import com.qiniu.droid.rtc.live.demo.activity.LoginActivity;
 import com.qiniu.droid.rtc.live.demo.activity.UserAgreementActivity;
 import com.qiniu.droid.rtc.live.demo.activity.WebActivity;
+import com.qiniu.droid.rtc.live.demo.im.DataInterface;
 import com.qiniu.droid.rtc.live.demo.model.UserInfo;
 import com.qiniu.droid.rtc.live.demo.utils.AppUtils;
 import com.qiniu.droid.rtc.live.demo.utils.PermissionChecker;
 import com.qiniu.droid.rtc.live.demo.utils.QNAppServer;
 import com.qiniu.droid.rtc.live.demo.utils.SharedPreferencesUtils;
 import com.qiniu.droid.rtc.live.demo.utils.ToastUtils;
-import com.qiniu.droid.rtc.live.demo.utils.Utils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -53,7 +54,7 @@ public class MineFragment extends Fragment implements View.OnClickListener {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_mine, container, false);
-        mIvAvater = view.findViewById(R.id.iv_mine_avater);
+        mIvAvater = view.findViewById(R.id.iv_mine_avatar);
         mTvName = view.findViewById(R.id.tv_mine_name);
         mTvVersionCode = view.findViewById(R.id.version_code_text);
         mIvEditName = view.findViewById(R.id.iv_mine_edit_name);
@@ -89,7 +90,12 @@ public class MineFragment extends Fragment implements View.OnClickListener {
     private void initData() {
         // 加载用户数据
         mUserInfo = SharedPreferencesUtils.getUserInfo(AppUtils.getApp());
-        mIvAvater.setImageResource(Utils.getUserAvaterResId(mUserInfo.getUserId()));
+        if (mUserInfo != null && !"".equals(mUserInfo.getAvatar())) {
+            Glide.with(this)
+                    .load(mUserInfo.getAvatar())
+                    .centerInside()
+                    .into(mIvAvater);
+        }
         mTvName.setText(mUserInfo == null ? "" : mUserInfo.getNickName());
         mTvVersionCode.setText(String.format(getString(R.string.version_code_text), BuildConfig.VERSION_NAME));
     }
@@ -116,7 +122,7 @@ public class MineFragment extends Fragment implements View.OnClickListener {
                         .setNegativeButton("取消",null)
                         .setPositiveButton("确认", (dialog, which) -> {
                             String gender = genderRadios.getCheckedRadioButtonId() == R.id.gender_male ? "male" : "female";
-                            UserInfo modifiedInfo = new UserInfo(mUserInfo.getUserId(), editText.getText().toString(), gender);
+                            UserInfo modifiedInfo = new UserInfo(mUserInfo.getUserId(), editText.getText().toString(), gender, mUserInfo.getAvatar());
                             new Thread(() -> QNAppServer.getInstance().updateProfile(modifiedInfo, new QNAppServer.OnRequestResultCallback() {
                                 @Override
                                 public void onRequestSuccess(String responseMsg) {
@@ -164,6 +170,7 @@ public class MineFragment extends Fragment implements View.OnClickListener {
                             @Override
                             public void onRequestSuccess(String responseMsg) {
                                 SharedPreferencesUtils.clearAccountInfo(AppUtils.getApp());
+                                DataInterface.clearChatRoomConfig();
                                 Intent loginIntent = new Intent(getContext(), LoginActivity.class)
                                         .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
                                 startActivity(loginIntent);

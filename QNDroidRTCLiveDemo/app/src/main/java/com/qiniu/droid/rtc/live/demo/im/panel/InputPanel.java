@@ -4,6 +4,7 @@ import android.content.Context;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -123,6 +124,10 @@ public class InputPanel extends LinearLayout {
 
     public void setPanelListener(InputPanelListener l) {
         listener = l;
+    }
+
+    public boolean isSelectingEmoji() {
+        return emojiBoard.getVisibility() == VISIBLE;
     }
 
     /**

@@ -46,10 +46,12 @@ public class LiveRoomListAdapter extends RecyclerView.Adapter<LiveRoomListAdapte
     @Override
     public void onBindViewHolder(@NonNull LiveRoomListHolder holder, int position) {
         RoomInfo roomInfo = mRoomInfos.get(position);
-        if (RoomType.SINGLE.getValue().equals(roomInfo.getStatus())) {
+        if (RoomType.SINGLE.getValue().equalsIgnoreCase(roomInfo.getStatus())) {
             holder.mRoomType.setText("单主播直播");
-        } else {
+        } else if (RoomType.PK.getValue().equalsIgnoreCase(roomInfo.getStatus())) {
             holder.mRoomType.setText("连麦 PK");
+        } else if (RoomType.VOICE_LIVE.getValue().equalsIgnoreCase(roomInfo.getStatus())) {
+            holder.mRoomType.setText("语音聊天室");
         }
         holder.mRoomName.setText(roomInfo.getName());
         holder.mRoomAudience.setText("观众人数：" + roomInfo.getAudienceNumber());

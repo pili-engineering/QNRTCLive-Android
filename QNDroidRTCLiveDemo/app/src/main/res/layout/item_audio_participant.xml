@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="12dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginTop="12dp">
+
+    <com.qiniu.droid.rtc.live.demo.view.CircleImageView
+        android:id="@+id/audio_avatar"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:src="@drawable/ic_waiting_participant" />
+
+    <ImageView
+        android:id="@+id/audio_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_voice_on"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone"
+        android:layout_alignEnd="@id/audio_avatar"
+        android:layout_alignBottom="@id/audio_avatar" />
+
+    <TextView
+        android:id="@+id/audio_participant_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:layout_below="@id/audio_avatar"
+        android:layout_centerHorizontal="true"
+        android:gravity="center"
+        android:text="@string/audio_waiting_participant"
+        android:textColor="@color/audio_hint_text_color"
+        android:textSize="10sp"
+        android:singleLine="true"
+        android:ellipsize="middle" />
+</RelativeLayout>

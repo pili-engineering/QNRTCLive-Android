@@ -35,6 +35,8 @@ public class BottomPanelFragment extends Fragment {
 
     private GiftPanelListener mGiftPanelListener;
 
+    private boolean mIsIgnoreAboveKeyboard;
+
     public interface BanListener {
         void addBanWarn();
     }
@@ -62,16 +64,25 @@ public class BottomPanelFragment extends Fragment {
 
     public boolean isPanelVisible() {
         boolean isInputPanelVisible = inputPanel.getVisibility() == View.VISIBLE;
-        boolean isGiftPanelVisible = giftPanel.getVisibility() == View.VISIBLE;
-        return isInputPanelVisible || isGiftPanelVisible;
+        return isInputPanelVisible || isGiftViewVisible();
+    }
+
+    public boolean isGiftViewVisible() {
+        return giftPanel.getVisibility() == View.VISIBLE;
     }
 
     public void showInputPanel() {
         if (isLoginAndCanInput()) {
             inputPanel.setVisibility(View.VISIBLE);
-            isShowInputAboveKeyboard(true);
+            if (mIsIgnoreAboveKeyboard) {
+                isShowInputAboveKeyboard(true);
+            }
             inputPanel.setType(InputPanel.TYPE_TEXTMESSAGE);
         }
+    }
+
+    public void setIgnoreAboveKeyboard(boolean isIgnoreAboveKeyboard) {
+        mIsIgnoreAboveKeyboard = isIgnoreAboveKeyboard;
     }
 
     public void hidePanels() {
@@ -199,6 +210,10 @@ public class BottomPanelFragment extends Fragment {
 
     public void setInputPanelListener(InputPanel.InputPanelListener l) {
         inputPanel.setPanelListener(l);
+    }
+
+    public boolean isSelectingEmoji() {
+        return inputPanel.isSelectingEmoji();
     }
 
     public void setSoftInputHeight(int inputHeight) {

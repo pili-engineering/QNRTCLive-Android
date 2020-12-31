@@ -24,6 +24,10 @@ public class ThreadUtils {
     private static ExecutorService mSingleThreadExecutor = null;
     private static ScheduledExecutorService mScheduledExecutorService = null;
 
+    public static boolean checkIsOnUiThread() {
+        return Looper.myLooper() == Looper.getMainLooper();
+    }
+
     public static void runOnUiThread(final Runnable runnable) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
             runnable.run();

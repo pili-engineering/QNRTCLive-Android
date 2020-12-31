@@ -2,17 +2,21 @@ package com.qiniu.droid.rtc.live.demo.activity;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
-import android.view.MotionEvent;
+import android.view.Display;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -25,7 +29,6 @@ import com.pili.pldroid.player.PLOnErrorListener;
 import com.pili.pldroid.player.PLOnInfoListener;
 import com.pili.pldroid.player.widget.PLVideoView;
 import com.qiniu.droid.rtc.live.demo.R;
-import com.qiniu.droid.rtc.live.demo.RTCLiveApplication;
 import com.qiniu.droid.rtc.live.demo.base.BaseActivity;
 import com.qiniu.droid.rtc.live.demo.common.ErrorCode;
 import com.qiniu.droid.rtc.live.demo.im.ChatroomKit;
@@ -39,7 +42,6 @@ import com.qiniu.droid.rtc.live.demo.im.like.HeartLayout;
 import com.qiniu.droid.rtc.live.demo.im.message.ChatroomBarrage;
 import com.qiniu.droid.rtc.live.demo.im.message.ChatroomGift;
 import com.qiniu.droid.rtc.live.demo.im.message.ChatroomLike;
-import com.qiniu.droid.rtc.live.demo.im.message.ChatroomSignal;
 import com.qiniu.droid.rtc.live.demo.im.message.ChatroomUserQuit;
 import com.qiniu.droid.rtc.live.demo.im.message.ChatroomWelcome;
 import com.qiniu.droid.rtc.live.demo.im.model.ChatRoomInfo;
@@ -47,7 +49,6 @@ import com.qiniu.droid.rtc.live.demo.im.model.NeedLoginEvent;
 import com.qiniu.droid.rtc.live.demo.im.panel.BottomPanelFragment;
 import com.qiniu.droid.rtc.live.demo.im.panel.InputPanel;
 import com.qiniu.droid.rtc.live.demo.model.RoomInfo;
-import com.qiniu.droid.rtc.live.demo.model.RoomType;
 import com.qiniu.droid.rtc.live.demo.model.UserInfo;
 import com.qiniu.droid.rtc.live.demo.utils.AppUtils;
 import com.qiniu.droid.rtc.live.demo.utils.BarUtils;
@@ -57,6 +58,7 @@ import com.qiniu.droid.rtc.live.demo.utils.NetworkUtils;
 import com.qiniu.droid.rtc.live.demo.utils.QNAppServer;
 import com.qiniu.droid.rtc.live.demo.utils.SharedPreferencesUtils;
 import com.qiniu.droid.rtc.live.demo.utils.ToastUtils;
+import com.qiniu.droid.rtc.live.demo.utils.Utils;
 import com.qiniu.droid.rtc.live.demo.view.LoadingDialog;
 
 import java.util.Random;
@@ -72,11 +74,6 @@ import io.rong.imlib.model.Conversation;
 import io.rong.imlib.model.MessageContent;
 import io.rong.message.TextMessage;
 
-import static com.qiniu.droid.rtc.live.demo.im.DataInterface.DEFAULT_AVATAR;
-import static com.qiniu.droid.rtc.live.demo.im.DataInterface.getUri;
-import static com.qiniu.droid.rtc.live.demo.im.message.ChatroomSignal.SIGNAL_STREAMER_BACK_TO_LIVING;
-import static com.qiniu.droid.rtc.live.demo.im.message.ChatroomSignal.SIGNAL_STREAMER_SWITCH_TO_BACKSTAGE;
-
 public class PlayingActivity extends BaseActivity implements Handler.Callback {
     private static final String TAG = "PlayingActivity";
     private static final int DEFAULT_RECONNECT_TIMES = 3;
@@ -85,7 +82,6 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
     private ImageView mIvRoomAudience;
     private TextView mTvRoomAudience;
     private ImageView mIvClose;
-    private View mAnchorLeftView;
 
     private PLVideoView mVideoView;
     private String mPlayUrl;
@@ -97,12 +93,13 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
 
     private ScheduledExecutorService mExecutor;
 
-    private boolean mStreamerIsBackground;
     private Toast mAudienceNumberToast;
 
     private Handler mMainHandler;
 
     private AtomicInteger mReconnectTime = new AtomicInteger(0);
+
+    private boolean mHasNavigationBar;
 
     private final Runnable mAudienceNumGetter = new Runnable() {
         @Override
@@ -124,7 +121,7 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                     public void onRequestFailed(int code, String reason) {
                         Log.i(TAG, "get audience num failed : code = " + code + " reason = " + reason);
                         if (code == ErrorCode.NO_SUCH_ROOM) {
-                            ToastUtils.showLongToast("本次直播结束，感谢观看！");
+                            ToastUtils.showLongToast(getString(R.string.toast_no_such_room));
                             leaveRoom();
                         }
                     }
@@ -141,7 +138,6 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
     @Override
     protected void initView() {
         initStatusBar();
-        mAnchorLeftView = findViewById(R.id.view_playing_anchor_left);
         mTvRoomName = findViewById(R.id.tv_playing_room_name);
         mIvRoomAudience = findViewById(R.id.iv_playing_audience);
         mTvRoomAudience = findViewById(R.id.tv_playing_room_audience);
@@ -188,6 +184,8 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
 
         mTvRoomName.setText(mRoomInfo.getName());
         mTvRoomAudience.setText(String.valueOf(mRoomInfo.getAudienceNumber()));
+
+        mHasNavigationBar = BarUtils.checkDeviceHasNavigationBar(this);
 
         new Thread(() -> QNAppServer.getInstance().enterRoom(mUserInfo.getUserId(), mRoomInfo.getId(), new QNAppServer.OnRequestResultCallback() {
             @Override
@@ -340,6 +338,7 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
         options.setInteger(AVOptions.KEY_PREPARE_TIMEOUT, 10 * 1000);
         // 1 -> hw codec enable, 0 -> disable [recommended]
         options.setInteger(AVOptions.KEY_MEDIACODEC, AVOptions.MEDIA_CODEC_SW_DECODE);
+        options.setInteger(AVOptions.KEY_PREFER_FORMAT, AVOptions.PREFER_FORMAT_FLV);
         options.setInteger(AVOptions.KEY_LIVE_STREAMING, 1);
         // 快开模式，启用后会加快该播放器实例再次打开相同协议的视频流的速度
         options.setInteger(AVOptions.KEY_FAST_OPEN, 1);
@@ -359,7 +358,7 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
             Log.i(TAG, "OnInfo, what = " + what + ", extra = " + extra);
             switch (what) {
                 case PLOnInfoListener.MEDIA_INFO_BUFFERING_START:
-                    if (!mStreamerIsBackground && mLoadingDialog != null) {
+                    if (mLoadingDialog != null) {
                         mLoadingDialog.show();
                     }
                     break;
@@ -496,12 +495,15 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
     long mCurrentTime = 0;
     private DanmuContainerView mDanmuContainerView;
     private GiftView mGiftView;
+    private LinearLayout mBottomBarLayout;
 
     private void initChatView() {
         mChatListView = (ListView) findViewById(R.id.chat_list_view);
         mChatListAdapter = new ChatListAdapter(this);
         mChatListView.setAdapter(mChatListAdapter);
         mChatBottomPanel = (BottomPanelFragment) getSupportFragmentManager().findFragmentById(R.id.bottom_bar);
+        mChatBottomPanel.setIgnoreAboveKeyboard(true);
+        mBottomBarLayout = findViewById(R.id.bottom_layout);
 
         mHeartLayout = (HeartLayout) findViewById(R.id.heart_layout);
         mBtnHeart = (ImageView) mChatBottomPanel.getView().findViewById(R.id.btn_heart);
@@ -544,17 +546,20 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                 barrage.setContent(text);
                 ChatroomKit.sendMessage(barrage);
             }
+            resetBottomBarLayout(true);
             mIvClose.setVisibility(View.VISIBLE);
         });
 
         mChatBottomPanel.setGiftPanelListener(new BottomPanelFragment.GiftPanelListener() {
             @Override
             public void onPanelOpen() {
+                resetBottomBarLayout(false);
                 mIvClose.setVisibility(View.GONE);
             }
 
             @Override
             public void onPanelClose() {
+                resetBottomBarLayout(true);
                 mIvClose.setVisibility(View.VISIBLE);
             }
         });
@@ -562,11 +567,13 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
         // 添加软键盘弹出监听，记录软键盘高度
         addOnSoftKeyBoardVisibleListener(findViewById(R.id.playing_layout), (visible, softInputHeight) -> {
             if (visible) {
-                mChatBottomPanel.setSoftInputHeight(softInputHeight);
-                mChatBottomPanel.isShowInputAboveKeyboard(true);
+                resetBottomBarLayout(false);
                 mIvClose.setVisibility(View.GONE);
             } else {
-                mChatBottomPanel.isShowInputAboveKeyboard(false);
+                if (!mChatBottomPanel.isSelectingEmoji() && !mChatBottomPanel.isGiftViewVisible()) {
+                    resetBottomBarLayout(true);
+                    mChatBottomPanel.hidePanels();
+                }
             }
         });
 
@@ -585,6 +592,9 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
             public boolean onTouch(View view, MotionEvent event) {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
+                        if (mChatBottomPanel.isSelectingEmoji() || mChatBottomPanel.isGiftViewVisible()) {
+                            resetBottomBarLayout(true);
+                        }
                         mChatBottomPanel.hidePanels();
                         break;
                     default:
@@ -619,6 +629,13 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
         mDanmuContainerView.setVisibility(visible);
     }
 
+    private void resetBottomBarLayout(boolean needMargin) {
+        RelativeLayout.LayoutParams lp = (RelativeLayout.LayoutParams) mBottomBarLayout.getLayoutParams();
+        int margin = needMargin ? Utils.dp2px(this, 16) : 0;
+        lp.setMargins(margin, margin, margin, margin);
+        mBottomBarLayout.setLayoutParams(lp);
+    }
+
     private void connectIM() {
         UserInfo userInfo = SharedPreferencesUtils.getUserInfo(this);
         String userName = userInfo.getNickName().isEmpty() ? "路人" : userInfo.getNickName();
@@ -635,7 +652,7 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
             public void onSuccess(String s) {
                 Log.i(TAG, "connect IM Success : " + s);
 
-                DataInterface.setLogin(userName);
+                DataInterface.setLogin(userName, Uri.parse(mUserInfo.getAvatar()));
                 mChatRoomInfo = new ChatRoomInfo(mRoomInfo.getId(), mRoomInfo.getName(), null, mRoomInfo.getCreator().getUserId(), 0);
 
                 initChatRoom();
@@ -645,7 +662,7 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
             public void onError(RongIMClient.ErrorCode errorCode) {
                 Log.e(TAG, "connect IM error : " + errorCode);
 
-                ToastUtils.showLongToast(getString(R.string.im_connect_error));
+                ToastUtils.showLongToast(String.format(getString(R.string.im_connect_error), errorCode));
             }
         });
     }
@@ -654,32 +671,6 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
         ChatroomKit.addEventHandler(handler);
         DataInterface.setBanStatus(false);
         joinChatRoom();
-    }
-
-    private void onStreamerSwitchToBackstage() {
-        if (RoomType.PK.getValue().equalsIgnoreCase(mRoomInfo.getStatus())) {
-            ToastUtils.showLongToast("您所观看的主播暂时离开！！！");
-            return;
-        }
-
-        if (mLoadingDialog != null && mLoadingDialog.isShowing()) {
-            mLoadingDialog.dismiss();
-        }
-        mStreamerIsBackground = true;
-        Log.e(TAG, "onStreamerSwitchToBackstage");
-        ToastUtils.showLongToast("您所观看的主播暂时离开！！！");
-        mAnchorLeftView.setVisibility(View.VISIBLE);
-    }
-
-    private void onStreamerBackToLiving() {
-        if (RoomType.PK.getValue().equalsIgnoreCase(mRoomInfo.getStatus())) {
-            ToastUtils.showLongToast("您所观看的主播已经回来！！！");
-            return;
-        }
-        mStreamerIsBackground = false;
-        Log.e(TAG, "onStreamerBackToLiving");
-        ToastUtils.showLongToast("您所观看的主播已经回来！！！");
-        mAnchorLeftView.setVisibility(View.GONE);
     }
 
     private void joinChatRoom() {
@@ -719,7 +710,7 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                     DanmuEntity danmuEntity = new DanmuEntity();
                     danmuEntity.setContent(barrage.getContent());
                     String name = sendUserId;
-                    Uri uri = getUri(PlayingActivity.this, DEFAULT_AVATAR);
+                    Uri uri = null;
                     if (messageContent != null) {
                         name = messageContent.getUserInfo().getName();
                         uri = DataInterface.getAvatarUri(messageContent.getUserInfo().getPortraitUri());
@@ -734,7 +725,7 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                         GiftSendModel model = new GiftSendModel(gift.getNumber());
                         model.setGiftRes(DataInterface.getGiftInfo(gift.getId()).getGiftRes());
                         String name = sendUserId;
-                        Uri uri = getUri(RTCLiveApplication.getContext(), R.drawable.avatar_1);
+                        Uri uri = null;
                         if (messageContent != null) {
                             name = messageContent.getUserInfo().getName();
                             uri = DataInterface.getAvatarUri(messageContent.getUserInfo().getPortraitUri());
@@ -743,14 +734,6 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                         model.setNickname(name);
                         model.setUserAvatarRes(uri.toString());
                         mGiftView.addGift(model);
-                    }
-                } else if (messageContent instanceof ChatroomSignal) {
-                    ChatroomSignal signalMessage = (ChatroomSignal) messageContent;
-                    String signal = signalMessage.getSignal();
-                    if (TextUtils.equals(signal, SIGNAL_STREAMER_SWITCH_TO_BACKSTAGE)) {
-                        onStreamerSwitchToBackstage();
-                    } else if (TextUtils.equals(signal, SIGNAL_STREAMER_BACK_TO_LIVING)) {
-                        onStreamerBackToLiving();
                     }
                 } else if (((io.rong.imlib.model.Message) msg.obj).getConversationType() == Conversation.ConversationType.CHATROOM) {
                     io.rong.imlib.model.Message msgObj = (io.rong.imlib.model.Message) msg.obj;
@@ -791,6 +774,8 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                                                  final PlayingActivity.SoftInputStatusListener listener) {
         root.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             private boolean isVisibleForLast = false;
+            private int currentViewHeight;
+            private int mNavigationBarHeight;
 
             @Override
             public void onGlobalLayout() {
@@ -800,6 +785,20 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
                 int displayHeight = rect.bottom - rect.top;
                 // 屏幕整体的高度
                 int height = root.getHeight();
+                // 计算是否有底部导航栏，处理点赞 UI
+                if (mNavigationBarHeight == 0 && mHasNavigationBar) {
+                    mNavigationBarHeight = BarUtils.getNavigationBarHeight();
+                }
+                if (currentViewHeight != displayHeight) {
+                    boolean needUpdateLayout = currentViewHeight != 0 && Math.abs(currentViewHeight - displayHeight) == mNavigationBarHeight;
+                    if (currentViewHeight == 0 || needUpdateLayout) {
+                        RelativeLayout.LayoutParams lp = (RelativeLayout.LayoutParams) mHeartLayout.getLayoutParams();
+                        int navigationBarHeight = BarUtils.isNavigationBarShowing(PlayingActivity.this) ? BarUtils.getNavigationBarHeight() : 0;
+                        lp.bottomMargin = navigationBarHeight + Utils.dp2px(PlayingActivity.this, 60);
+                        mHeartLayout.setLayoutParams(lp);
+                    }
+                    currentViewHeight = displayHeight;
+                }
                 // 键盘高度
                 int keyboardHeight = height - displayHeight;
                 boolean visible = (double) displayHeight / height < 0.8;

@@ -2,9 +2,11 @@ package com.qiniu.droid.rtc.live.demo.utils;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.os.Build;
+import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,6 +18,8 @@ import androidx.annotation.ColorRes;
 import androidx.annotation.IntRange;
 
 import com.qiniu.droid.rtc.live.demo.R;
+
+import java.lang.reflect.Method;
 
 public class BarUtils {
 
@@ -43,6 +47,74 @@ public class BarUtils {
             return TypedValue.complexToDimensionPixelSize(tv.data, Resources.getSystem().getDisplayMetrics());
         }
         return 0;
+    }
+
+    /**
+     * 底部导航栏是否显示
+     *
+     * @param context 上下文
+     * @return true or false
+     */
+    public static boolean isNavigationBarShowing(Context context) {
+        //判断手机底部是否支持导航栏显示
+        boolean haveNavigationBar = checkDeviceHasNavigationBar(context);
+        if (haveNavigationBar) {
+            String brand = Build.BRAND;
+            String mDeviceInfo;
+            if (brand.equalsIgnoreCase("HUAWEI")) {
+                mDeviceInfo = "navigationbar_is_min";
+            } else if (brand.equalsIgnoreCase("XIAOMI")) {
+                mDeviceInfo = "force_fsg_nav_bar";
+            } else if (brand.equalsIgnoreCase("VIVO")) {
+                mDeviceInfo = "navigation_gesture_on";
+            } else if (brand.equalsIgnoreCase("OPPO")) {
+                mDeviceInfo = "navigation_gesture_on";
+            } else {
+                mDeviceInfo = "navigationbar_is_min";
+            }
+
+            return Settings.Global.getInt(context.getContentResolver(), mDeviceInfo, 0) == 0;
+        }
+        return false;
+    }
+
+    /**
+     * 检查设备是否支持虚拟导航栏
+     *
+     * @param context 上下文
+     * @return true or false
+     */
+    public static boolean checkDeviceHasNavigationBar(Context context) {
+        boolean hasNavigationBar = false;
+        Resources rs = context.getResources();
+        int id = rs.getIdentifier("config_showNavigationBar", "bool", "android");
+        if (id > 0) {
+            hasNavigationBar = rs.getBoolean(id);
+        }
+        try {
+            Class systemPropertiesClass = Class.forName("android.os.SystemProperties");
+            Method m = systemPropertiesClass.getMethod("get", String.class);
+            String navBarOverride = (String) m.invoke(systemPropertiesClass, "qemu.hw.mainkeys");
+            if ("1".equals(navBarOverride)) {
+                hasNavigationBar = false;
+            } else if ("0".equals(navBarOverride)) {
+                hasNavigationBar = true;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return hasNavigationBar;
+    }
+
+    /**
+     * 获取导航栏高度
+     *
+     * @return 单位 px
+     */
+    public static int getNavigationBarHeight() {
+        Resources resources = Resources.getSystem();
+        int resourceId = resources.getIdentifier("navigation_bar_height","dimen", "android");
+        return resources.getDimensionPixelSize(resourceId);
     }
 
     /**

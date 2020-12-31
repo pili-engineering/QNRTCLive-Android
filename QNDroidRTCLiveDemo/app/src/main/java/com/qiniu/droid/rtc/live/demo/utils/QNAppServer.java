@@ -108,9 +108,9 @@ public class QNAppServer {
         String requestBody = "{\"userID\":\"" + userId + "\",\"roomID\":\"" + roomId + "\"}";
         doPostRequest(url, requestBody, mAuthorization, callback); }
 
-    public void createRoom(String userId, String roomName, OnRequestResultCallback callback) {
+    public void createRoom(String userId, String roomName, String roomType, OnRequestResultCallback callback) {
         String url = LIVE_SERVER_ADDR + "/v1/rooms";
-        String requestBody = "{\"userID\":\"" + userId + "\",\"roomName\":\"" + roomName + "\"}";
+        String requestBody = "{\"userID\":\"" + userId + "\",\"roomName\":\"" + roomName + "\",\"roomType\":\"" + roomType + "\"}";
         doPostRequest(url, requestBody, mAuthorization, callback);
     }
 
@@ -243,7 +243,7 @@ public class QNAppServer {
         try {
             Log.i(TAG, "doGetRequest url = " + url);
             OkHttpClient client = new OkHttpClient.Builder()
-                    .connectTimeout(10, TimeUnit.SECONDS)
+                    .connectTimeout(2, TimeUnit.SECONDS)
                     .build();
             Request request = new Request.Builder()
                     .header("Authorization", authorization == null ? "" : authorization)

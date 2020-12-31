@@ -23,11 +23,12 @@
         android:background="@color/colorDivider" />
 
     <TextView
+        android:id="@+id/dialog_content_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="32dp"
-        android:text="@string/remote_refused_pk_request"
-        android:layout_gravity="center" />
+        android:layout_gravity="center"
+        android:textSize="@dimen/dialog_text_size" />
 
     <Button
         android:id="@+id/ok_btn"
@@ -37,7 +38,6 @@
         android:paddingEnd="16dp"
         android:layout_marginBottom="24dp"
         android:background="@drawable/oval_button_background"
-        android:text="@string/confirm_be_refused"
         android:textColor="@android:color/white"
         android:textSize="@dimen/dialog_text_size"
         android:layout_gravity="center"/>

@@ -47,21 +47,27 @@ public class PkParticipantsFragment extends BaseBottomSheetFragment {
 
     @Override
     protected int getLayoutResId() {
-        return R.layout.bottom_sheet_pk_participants;
+        return R.layout.bottom_sheet_communicate_participants;
     }
 
     @Override
     protected void initViewAndEvents(View view, Bundle savedInstanceState) {
-        Button endPkBtn = view.findViewById(R.id.end_pk_btn);
+        Button endPkBtn = view.findViewById(R.id.end_communicate_btn);
+        endPkBtn.setText(R.string.quit_pk_button);
         endPkBtn.setOnClickListener(v -> {
             if (mOnPkParticipantClickListener != null) {
                 mOnPkParticipantClickListener.onEndPkClicked();
             }
         });
 
-        mPkParticipantsRv = view.findViewById(R.id.pk_participants_list);
+        mPkParticipantsRv = view.findViewById(R.id.communicate_participants_list);
         mPkParticipantsRv.setNestedScrollingEnabled(false);
-        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(getContext(), RecyclerView.VERTICAL, false);
+        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(getContext(), RecyclerView.VERTICAL, false) {
+            @Override
+            public boolean canScrollVertically() {
+                return false;
+            }
+        };
         mPkParticipantsRv.setLayoutManager(layoutManager);
         mPKParticipantsAdapter = new PKParticipantsAdapter(mPkParticipants);
         mPKParticipantsAdapter.setOnItemClickListener(new PKParticipantsAdapter.OnItemClickListener() {

@@ -1,7 +1,8 @@
 package com.qiniu.droid.rtc.live.demo.activity;
 
 import android.view.View;
-import android.widget.LinearLayout;
+import android.webkit.WebView;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.qiniu.droid.rtc.live.demo.R;
@@ -11,7 +12,8 @@ import com.qiniu.droid.rtc.live.demo.utils.BarUtils;
 public class UserAgreementActivity extends BaseActivity {
 
     private TextView mTvBarTitle;
-    private LinearLayout mRlBarBack;
+    private ImageView mBackBtn;
+    private WebView mAgreementWebView;
 
     @Override
     protected int getLayoutId() {
@@ -21,9 +23,11 @@ public class UserAgreementActivity extends BaseActivity {
     @Override
     protected void initView() {
         initStatusBar();
-        mRlBarBack = findViewById(R.id.rl_bar_back);
+        mBackBtn = findViewById(R.id.back_btn);
         mTvBarTitle = findViewById(R.id.tv_bar_title);
         mTvBarTitle.setText("用户协议");
+        mAgreementWebView = findViewById(R.id.agreement_webview);
+        mAgreementWebView.loadUrl("file:///android_asset/user_agreement.html");
     }
 
     private void initStatusBar() {
@@ -34,7 +38,7 @@ public class UserAgreementActivity extends BaseActivity {
 
     @Override
     protected void initEvent() {
-        mRlBarBack.setOnClickListener(this);
+        mBackBtn.setOnClickListener(this);
     }
 
     @Override
@@ -45,7 +49,7 @@ public class UserAgreementActivity extends BaseActivity {
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
-            case R.id.rl_bar_back:
+            case R.id.back_btn:
                 finish();
                 break;
             default:

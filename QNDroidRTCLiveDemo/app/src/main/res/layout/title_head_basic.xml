@@ -5,30 +5,23 @@
     android:background="@color/blue"
     android:gravity="center_vertical">
 
-    <LinearLayout
-        android:id="@+id/rl_bar_back"
+    <ImageView
+        android:id="@+id/back_btn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginStart="16dp">
+        android:layout_centerVertical="true"
+        android:layout_marginStart="16dp"
+        android:src="@drawable/ic_back" />
 
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/ic_back" />
-
-        <TextView
-            android:id="@+id/tv_bar_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="32dp"
-            android:singleLine="true"
-            android:text="用户协议"
-            android:textSize="20sp"
-            android:typeface="monospace"
-            android:fontFamily="sans-serif-medium"
-            android:textColor="@color/white" />
-
-    </LinearLayout>
+    <TextView
+        android:id="@+id/tv_bar_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:fontFamily="sans-serif-medium"
+        android:singleLine="true"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:typeface="monospace" />
 
 </RelativeLayout>

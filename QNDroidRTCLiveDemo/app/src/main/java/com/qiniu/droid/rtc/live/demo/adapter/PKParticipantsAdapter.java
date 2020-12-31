@@ -39,7 +39,7 @@ public class PKParticipantsAdapter extends RecyclerView.Adapter<PKParticipantsAd
     @NonNull
     @Override
     public PKParticipantsViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_pk_participant, parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_communication_participant, parent, false);
         return new PKParticipantsViewHolder(view);
     }
 
