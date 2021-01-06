@@ -33,7 +33,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="8dp"
-            android:text="互动直播"
+            android:text="连麦直播"
             android:textColor="@color/colorBasic" />
 
     </LinearLayout>

@@ -749,6 +749,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     private void showPkRequestDialog(PkRequestInfo info) {
+        if (isFinishing()) {
+            return;
+        }
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_handle_request, null);
         TextView content = view.findViewById(R.id.request_pk_info);
         Button acceptBtn = view.findViewById(R.id.accept_btn);
@@ -788,6 +791,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     private void showBeRefusedDialog() {
+        if (isFinishing()) {
+            return;
+        }
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_tips, null);
         TextView content = view.findViewById(R.id.dialog_content_text);
         Button sureBtn = view.findViewById(R.id.ok_btn);
@@ -804,6 +810,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     private void showPkReqTimeoutDialog() {
+        if (isFinishing()) {
+            return;
+        }
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_tips, null);
         TextView content = view.findViewById(R.id.dialog_content_text);
         Button sureBtn = view.findViewById(R.id.ok_btn);
@@ -820,6 +829,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     private void showReconnectFailedDialog() {
+        if (isFinishing()) {
+            return;
+        }
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_tips, null);
         TextView content = view.findViewById(R.id.dialog_content_text);
         Button sureBtn = view.findViewById(R.id.ok_btn);
