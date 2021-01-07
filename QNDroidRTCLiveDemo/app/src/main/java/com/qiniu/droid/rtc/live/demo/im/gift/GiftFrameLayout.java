@@ -18,6 +18,7 @@ import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.bumptech.glide.Glide;
 import com.qiniu.droid.rtc.live.demo.R;
 
 
@@ -102,7 +103,10 @@ public class GiftFrameLayout extends FrameLayout {
             anim_gift.setImageResource(model.getGiftRes());
         }
         if (!TextUtils.isEmpty(model.getUserAvatarRes())) {
-            anim_header.setImageURI(Uri.parse(model.getUserAvatarRes()));
+            Glide.with(this)
+                    .load(Uri.parse(model.getUserAvatarRes()))
+                    .centerInside()
+                    .into(anim_header);
         }
         this.nick = anim_nickname.getText().toString();
     }

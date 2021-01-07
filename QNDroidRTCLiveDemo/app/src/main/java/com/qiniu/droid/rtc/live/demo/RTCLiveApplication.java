@@ -58,6 +58,7 @@ public class RTCLiveApplication extends Application {
     public void onEventMainThread(MessageEvent messageEvent) {
         ToastUtils.showShortToast(getString(R.string.toast_bad_token));
         SharedPreferencesUtils.clearAccountInfo(AppUtils.getApp());
+        DataInterface.clearChatRoomConfig();
         Intent loginIntent = new Intent(getContext(), LoginActivity.class)
                 .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(loginIntent);

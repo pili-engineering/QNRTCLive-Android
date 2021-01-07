@@ -13,9 +13,9 @@
     <dimen name="heart_size_height">27.3dp</dimen>
     <dimen name="heart_size_width">32.5dp</dimen>
 
-    <dimen name="dialog_button_height">32dp</dimen>
+    <dimen name="dialog_button_height">38dp</dimen>
     <dimen name="dialog_text_size">18sp</dimen>
-    <dimen name="dialog_margin">32dp</dimen>
+    <dimen name="dialog_margin">64dp</dimen>
 
     <dimen name="grid_expected_size">120dp</dimen>
 </resources>

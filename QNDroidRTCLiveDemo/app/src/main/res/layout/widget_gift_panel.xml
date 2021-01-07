@@ -36,6 +36,7 @@
             android:gravity="center"
             android:inputType="number"
             android:numeric="integer"
+            android:maxLength="4"
             android:textColor="@color/fontColor"
             android:text="9" />
 

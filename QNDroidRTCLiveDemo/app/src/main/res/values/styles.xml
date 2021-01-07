@@ -19,6 +19,8 @@
 
     <style name="DialogTheme" parent="Theme.AppCompat.Dialog.Alert">
         <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowMinWidthMajor">70%</item>
+        <item name="android:windowMinWidthMinor">70%</item>
     </style>
     <style name="AppThemeFullscreen" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowFullscreen">true</item>

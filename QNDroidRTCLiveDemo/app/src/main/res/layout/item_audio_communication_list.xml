@@ -4,11 +4,11 @@
     android:layout_height="wrap_content"
     android:paddingStart="32dp"
     android:paddingEnd="32dp"
-    android:paddingTop="8dp"
-    android:paddingBottom="8dp">
+    android:paddingTop="16dp"
+    android:paddingBottom="16dp">
 
     <TextView
-        android:id="@+id/participant_nick_name"
+        android:id="@+id/user_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerVertical="true"
@@ -21,7 +21,7 @@
         android:layout_marginStart="8dp"
         android:paddingStart="8dp"
         android:paddingEnd="8dp"
-        android:layout_toEndOf="@id/participant_nick_name"
+        android:layout_toEndOf="@id/user_name"
         android:layout_centerVertical="true"
         android:background="@drawable/oval_button_background"
         android:text="主播"
@@ -29,24 +29,13 @@
         android:textColor="@android:color/white" />
 
     <ImageButton
-        android:id="@+id/mute_video_btn"
+        android:id="@+id/voice_operate_btn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:src="@drawable/ic_video"
-        android:visibility="invisible"
+        android:gravity="center"
+        android:src="@drawable/ic_operate_voice_on"
+        android:background="@color/transparent"
         android:layout_alignParentEnd="true"
-        android:layout_centerVertical="true"
-        android:background="@android:color/transparent" />
-
-    <ImageButton
-        android:id="@+id/mute_audio_btn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/ic_voice"
-        android:visibility="invisible"
-        android:layout_toStartOf="@id/mute_video_btn"
-        android:layout_marginEnd="32dp"
-        android:layout_centerVertical="true"
-        android:background="@android:color/transparent" />
+        android:layout_centerVertical="true" />
 
 </RelativeLayout>

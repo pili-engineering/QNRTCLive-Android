@@ -13,7 +13,7 @@
         android:layout_marginTop="22dp"
         android:background="@drawable/bg_giftlayout">
 
-        <ImageView
+        <com.qiniu.droid.rtc.live.demo.view.CircleImageView
             android:id="@+id/gift_userheader_iv"
             android:layout_width="39dp"
             android:layout_height="39dp"

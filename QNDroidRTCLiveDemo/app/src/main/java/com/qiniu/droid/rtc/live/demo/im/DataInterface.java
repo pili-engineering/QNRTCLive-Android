@@ -10,7 +10,7 @@ import android.util.Log;
 import com.qiniu.droid.rtc.live.demo.R;
 import com.qiniu.droid.rtc.live.demo.RTCLiveApplication;
 import com.qiniu.droid.rtc.live.demo.im.model.Gift;
-import com.qiniu.droid.rtc.live.demo.utils.Config;
+import com.qiniu.droid.rtc.live.demo.utils.Constants;
 import com.qiniu.droid.rtc.live.demo.utils.QNAppServer;
 import com.qiniu.droid.rtc.live.demo.utils.ThreadUtils;
 
@@ -86,9 +86,7 @@ public class DataInterface {
     }
 
     public static void putString(String key, String value) {
-        editor()
-                .putString(key, value)
-                .apply();
+        editor().putString(key, value).apply();
     }
 
     public static String getString(String key) {
@@ -103,6 +101,10 @@ public class DataInterface {
         return mSP.edit();
     }
 
+    public static void clearChatRoomConfig() {
+        editor().clear().apply();
+    }
+
     public static String getUserName() {
         return mUserName;
     }
@@ -111,8 +113,13 @@ public class DataInterface {
      * 模拟登陆后的逻辑
      */
     public static void setLogin(String userName) {
+        setLogin(userName, null);
+    }
+
+    public static void setLogin(String userName, Uri portraitUri) {
         mUserName = userName;
-        ChatroomKit.setCurrentUser(new UserInfo(getUserId(), getUserName(), Uri.parse(String.valueOf(getRandomNum(AVATARS.length)))));
+        ChatroomKit.setCurrentUser(new UserInfo(getUserId(), getUserName(),
+                portraitUri == null ? Uri.parse(String.valueOf(getRandomNum(AVATARS.length))) : portraitUri));
     }
 
     public static String getUserId() {
@@ -162,6 +169,13 @@ public class DataInterface {
                 switch (status) {
                     case CONNECTED://连接成功。
                         Log.i(TAG, "连接成功");
+                        String userId = RongIMClient.getInstance().getCurrentUserId();
+                        putString(KEY_USER_ID, userId);
+                        if (isLogin()) {
+                            setLogin(mUserName);
+                        }
+                        if (callback != null)
+                            callback.onSuccess(userId);
                         break;
                     case DISCONNECTED://断开连接。
                         Log.i(TAG, "断开连接");
@@ -190,13 +204,7 @@ public class DataInterface {
 
             @Override
             public void onSuccess(String s) {
-                putString(KEY_USER_ID, s);
-                if (isLogin()) {
-                    setLogin(mUserName);
-                }
-                Log.i(TAG, "connectSuccess");
-                if (callback != null)
-                    callback.onSuccess(s);
+                Log.i(TAG, "connectSuccess : " + s);
             }
 
             @Override
@@ -215,7 +223,7 @@ public class DataInterface {
             public void onRequestSuccess(String responseMsg) {
                 try {
                     JSONObject jsonObject = new JSONObject(responseMsg);
-                    String token = jsonObject.optString(Config.KEY_CHAT_TOKEN);
+                    String token = jsonObject.optString(Constants.KEY_CHAT_TOKEN);
                     putString(KEY_USER_TOKEN, token);
                     connectIM(callback);
                 } catch (JSONException e) {
@@ -243,21 +251,15 @@ public class DataInterface {
     }
 
     /**
-     * 由于服务器全没有存储用户信息，所以使用本地图片模拟获取用户头像
+     * 获取用户头像 uri
      * @param uri
      * @return
      */
     public static Uri getAvatarUri(Uri uri){
-        if (uri == null || TextUtils.isEmpty(uri.toString()))
-            return getUri(RTCLiveApplication.getContext(),AVATARS[0]);
-        int index = 0;
-        try {
-            index = Integer.valueOf(uri.toString());
-        } catch (NumberFormatException e) {
-            e.printStackTrace();
+        if (uri == null || TextUtils.isEmpty(uri.toString()) || uri.getScheme() == null) {
+            return getUri(RTCLiveApplication.getContext(), R.mipmap.default_avatar);
         }
-        index = index >= AVATARS.length ? 0 : index;
-        return getUri(RTCLiveApplication.getContext(),AVATARS[index]);
+        return uri;
     }
 
     /*获取礼物列表*/

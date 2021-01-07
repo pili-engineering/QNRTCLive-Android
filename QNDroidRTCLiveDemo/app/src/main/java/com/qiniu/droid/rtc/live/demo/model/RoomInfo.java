@@ -5,6 +5,7 @@ import android.os.Parcelable;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.util.List;
 import java.util.Objects;
 
 public class RoomInfo implements Parcelable {
@@ -17,6 +18,7 @@ public class RoomInfo implements Parcelable {
     String status;
     int audienceNumber;
     UserInfo pkAnchor;
+    List<AudioParticipant> joinedAudiences;
 
     public RoomInfo() {
 
@@ -30,6 +32,7 @@ public class RoomInfo implements Parcelable {
         status = in.readString();
         audienceNumber = in.readInt();
         pkAnchor = in.readParcelable(UserInfo.class.getClassLoader());
+        joinedAudiences = in.createTypedArrayList(AudioParticipant.CREATOR);
     }
 
     public String getId() {
@@ -88,6 +91,14 @@ public class RoomInfo implements Parcelable {
         this.pkAnchor = pkAnchor;
     }
 
+    public List<AudioParticipant> getJoinedAudiences() {
+        return joinedAudiences;
+    }
+
+    public void setJoinedAudiences(List<AudioParticipant> joinedAudiences) {
+        this.joinedAudiences = joinedAudiences;
+    }
+
     public static final Creator<RoomInfo> CREATOR = new Creator<RoomInfo>() {
         @Override
         public RoomInfo createFromParcel(Parcel in) {
@@ -114,6 +125,7 @@ public class RoomInfo implements Parcelable {
         dest.writeString(status);
         dest.writeInt(audienceNumber);
         dest.writeParcelable(pkAnchor, flags);
+        dest.writeTypedList(joinedAudiences);
     }
 
     @Override
@@ -127,11 +139,12 @@ public class RoomInfo implements Parcelable {
                 Objects.equals(getCreator(), roomInfo.getCreator()) &&
                 Objects.equals(getPlayUrl(), roomInfo.getPlayUrl()) &&
                 Objects.equals(getStatus(), roomInfo.getStatus()) &&
-                Objects.equals(getPkAnchor(), roomInfo.getPkAnchor());
+                Objects.equals(getPkAnchor(), roomInfo.getPkAnchor()) &&
+                Objects.equals(getJoinedAudiences(), roomInfo.getJoinedAudiences());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId(), getName(), getCreator(), getPlayUrl(), getStatus(), getAudienceNumber(), getPkAnchor());
+        return Objects.hash(getId(), getName(), getCreator(), getPlayUrl(), getStatus(), getAudienceNumber(), getPkAnchor(), getJoinedAudiences());
     }
 }

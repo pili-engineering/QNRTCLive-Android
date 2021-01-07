@@ -81,21 +81,27 @@ import com.qiniu.droid.rtc.live.demo.im.message.ChatroomWelcome;
 import com.qiniu.droid.rtc.live.demo.im.model.ChatRoomInfo;
 import com.qiniu.droid.rtc.live.demo.im.panel.BottomPanelFragment;
 import com.qiniu.droid.rtc.live.demo.im.panel.InputPanel;
+import com.qiniu.droid.rtc.live.demo.model.AudioParticipant;
 import com.qiniu.droid.rtc.live.demo.model.PkRequestInfo;
 import com.qiniu.droid.rtc.live.demo.model.RoomInfo;
 import com.qiniu.droid.rtc.live.demo.model.UserInfo;
-import com.qiniu.droid.rtc.live.demo.signal.QNSignalClient;
+import com.qiniu.droid.rtc.live.demo.signal.OnSignalClientListener;
+import com.qiniu.droid.rtc.live.demo.signal.QNIMSignalClient;
 import com.qiniu.droid.rtc.live.demo.utils.AppUtils;
 import com.qiniu.droid.rtc.live.demo.utils.BarUtils;
 import com.qiniu.droid.rtc.live.demo.utils.Config;
+import com.qiniu.droid.rtc.live.demo.utils.Constants;
 import com.qiniu.droid.rtc.live.demo.utils.NetworkUtils;
 import com.qiniu.droid.rtc.live.demo.utils.QNAppServer;
 import com.qiniu.droid.rtc.live.demo.utils.SharedPreferencesUtils;
+import com.qiniu.droid.rtc.live.demo.utils.ThreadUtils;
 import com.qiniu.droid.rtc.live.demo.utils.ToastUtils;
+import com.qiniu.droid.rtc.live.demo.utils.ViewClickUtils;
 import com.qiniu.droid.rtc.live.demo.view.LoadingDialog;
 import com.qiniu.droid.rtc.model.QNAudioDevice;
 import com.qiniu.droid.rtc.model.QNBackGround;
 import com.qiniu.droid.rtc.model.QNForwardJob;
+import com.qiniu.droid.rtc.model.QNImage;
 import com.qiniu.droid.rtc.model.QNMergeJob;
 import com.qiniu.droid.rtc.model.QNMergeTrackOption;
 import com.qiniu.droid.rtc.model.QNStretchMode;
@@ -117,19 +123,20 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+import io.rong.imlib.IRongCallback;
 import io.rong.imlib.RongIMClient;
 import io.rong.imlib.model.Conversation;
 import io.rong.imlib.model.MessageContent;
 import io.rong.message.TextMessage;
 
-import static com.qiniu.droid.rtc.live.demo.im.message.ChatroomSignal.SIGNAL_STREAMER_BACK_TO_LIVING;
-import static com.qiniu.droid.rtc.live.demo.im.message.ChatroomSignal.SIGNAL_STREAMER_SWITCH_TO_BACKSTAGE;
+import static com.qiniu.droid.rtc.live.demo.signal.QNSignalErrorCode.INVALID_PARAMETER;
 import static com.qiniu.droid.rtc.live.demo.signal.QNSignalErrorCode.ROOM_IN_PK;
 import static com.qiniu.droid.rtc.live.demo.signal.QNSignalErrorCode.ROOM_NOT_EXIST;
 import static com.qiniu.droid.rtc.live.demo.signal.QNSignalErrorCode.ROOM_NOT_IN_PK;
 
 public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEventListener, Handler.Callback {
     private static final String TAG = "LiveRoomActivity";
+    private static final int JOB_STOP_DELAY_TIME = 5000;
 
     private QNSurfaceView mLocalVideoSurfaceView;
     private QNSurfaceView mRemoteVideoSurfaceView;
@@ -147,6 +154,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     private ImageView mAudienceNumberImage;
     private TextView mAudienceNumberText;
     private LoadingDialog mLoadingDialog;
+    private Dialog mPkRequestDialog;
 
     private QNRTCEngine mEngine;
     private QNForwardJob mForwardJob;
@@ -163,7 +171,6 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     private Handler mMainHandler;
     private Handler mSubThreadHandler;
 
-    private RoomInfo mRoomInfo;
     private String mRoomId;
     private String mRoomToken;
     private volatile boolean mIsForwardJobStreaming;
@@ -172,6 +179,8 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     private volatile boolean mIsRemoteTracksMerged;
     private boolean mReturnOriginalRoom;
     private volatile boolean mNeedResetFlashlight = false;
+    private volatile boolean mIsMicrophoneOn = true;
+    private volatile boolean mIsSpeakerOn = true;
 
     private int mSerialNum;
 
@@ -191,9 +200,8 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     private boolean mIsPkRequester = false;
     private RoomInfo mTargetPkRoomInfo;
 
-    // 信令相关
-    private QNSignalClient mSignalClient;
-    private String mWsUrl;
+    // IM signal
+    private QNIMSignalClient mSignalClient;
 
     private ScheduledExecutorService mExecutor;
     private Semaphore captureStoppedSem = new Semaphore(1);
@@ -275,6 +283,12 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     protected void onDestroy() {
         super.onDestroy();
 
+        if (mSignalClient != null) {
+            mSignalClient.disconnect();
+            mSignalClient.destroy();
+            mSignalClient = null;
+        }
+
         quitChatRoom();
 
         if (mExecutor != null) {
@@ -292,16 +306,14 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             mEngine.stopMergeStream(mMergeJobId);
             mIsMergeJobStreaming = false;
         }
-        if (mSignalClient != null) {
-            mSignalClient.disconnect();
-            mSignalClient.destroy();
-            mSignalClient = null;
-        }
         mEngine.leaveRoom();
         mEngine.destroy();
     }
 
     public void onClickStartLiveStreaming(View v) {
+        if (ViewClickUtils.isFastDoubleClick()) {
+            return;
+        }
         if (mLoadingDialog == null) {
             mLoadingDialog = new LoadingDialog.Builder(this)
                     .setCancelable(true)
@@ -309,12 +321,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                     .create();
         }
         mLoadingDialog.show();
-        mRoomInfo = getRoomInfoByCreator();
-        if (mRoomInfo == null) {
-            startStreamingByCreateRoom();
-        } else {
-            startStreamingByExistRoom(mRoomInfo.getId());
-        }
+        startStreaming();
     }
 
     public void onClickPk(View v) {
@@ -356,42 +363,15 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         EditText editText = view.findViewById(R.id.et_edit_room_name);
         editText.setText(mModifiedRoomNameText.getText());
         new MaterialAlertDialogBuilder(this)
-            .setTitle("修改房间名")
-            .setView(view)
-            .setNegativeButton("取消", null)
-            .setPositiveButton("确认", (dialog, which) -> {
-                final String roomName = editText.getText().toString();
-                new Thread(() -> {
-                    if (mRoomInfo == null) {
-                        mRoomInfo = getRoomInfoByCreator();
-                    }
-                    if (mRoomInfo == null) {
-                        mMainHandler.post(() -> mModifiedRoomNameText.setText(roomName));
-                        return;
-                    }
-                    QNAppServer.getInstance().updateRoomName(mRoomId, roomName, new QNAppServer.OnRequestResultCallback() {
-                        @Override
-                        public void onRequestSuccess(String responseMsg) {
-                            ToastUtils.showShortToast(getString(R.string.toast_update_room_name_success));
-                            mMainHandler.post(() -> {
-                                try {
-                                    JSONObject jsonObject = new JSONObject(responseMsg);
-                                    mModifiedRoomNameText.setText(jsonObject.optString("roomName"));
-                                } catch (JSONException e) {
-                                    e.printStackTrace();
-                                }
-                            });
-                        }
-
-                        @Override
-                        public void onRequestFailed(int code, String reason) {
-                            ToastUtils.showShortToast(getString(R.string.toast_update_room_name_failed));
-                        }
-                    });
-                }).start();
-            })
-        .create()
-        .show();
+                .setTitle("修改房间名")
+                .setView(view)
+                .setNegativeButton("取消", null)
+                .setPositiveButton("确认", (dialog, which) -> {
+                    final String roomName = editText.getText().toString();
+                    mModifiedRoomNameText.setText(roomName);
+                })
+                .create()
+                .show();
     }
 
     private void initStatusBar() {
@@ -439,12 +419,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         mAudienceNumberImage = findViewById(R.id.audience_image);
         mAudienceNumberText = findViewById(R.id.audience_number_text);
 
-        mRoomInfo = getRoomInfoByCreator();
-        if (mRoomInfo == null) {
-            mModifiedRoomNameText.setText(String.format(getString(R.string.room_nick_name_edit_text), mUserInfo.getNickName()));
-        } else {
-            mModifiedRoomNameText.setText(mRoomInfo.getName());
-        }
+        mModifiedRoomNameText.setText(String.format(getString(R.string.room_nick_name_edit_text), mUserInfo.getNickName()));
 
         mAudienceNumberImage.setOnClickListener(v -> showAudienceNumberToast());
         mAudienceNumberText.setOnClickListener(v -> showAudienceNumberToast());
@@ -468,6 +443,8 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         mEngine = QNRTCEngine.createEngine(getApplicationContext(), setting, this);
         mEngine.setCapturePreviewWindow(mLocalVideoSurfaceView);
         mEngine.setCaptureVideoCallBack(mCaptureVideoCallback);
+        mEngine.muteLocalAudio(!mIsMicrophoneOn);
+        mEngine.muteRemoteAudio(!mIsSpeakerOn);
     }
 
     private void startCaptureAfterAcquire() {
@@ -516,37 +493,10 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         mLocalTrackList.add(mLocalVideoTrack);
     }
 
-    private RoomInfo getRoomInfoByCreator() {
-        final RoomInfo[] roomInfo = {null};
-        CountDownLatch countDownLatch = new CountDownLatch(1);
-        mSubThreadHandler.post(() -> QNAppServer.getInstance().getRoomInfoByCreator(mUserInfo.getUserId(), new QNAppServer.OnRequestResultCallback() {
-            @Override
-            public void onRequestSuccess(String responseMsg) {
-                roomInfo[0] = parseRoomInfo(responseMsg);
-                countDownLatch.countDown();
-            }
-
-            @Override
-            public void onRequestFailed(int code, String reason) {
-                countDownLatch.countDown();
-            }
-        }));
-        try {
-            countDownLatch.await();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        if (roomInfo[0] == null) {
-            return null;
-        } else {
-            return roomInfo[0];
-        }
-    }
-
     private RoomInfo parseRoomInfo(String responseBody) {
         try {
             JSONObject jsonObject = new JSONObject(responseBody);
-            String rooms = jsonObject.optString(Config.KEY_ROOMS);
+            String rooms = jsonObject.optString(Constants.KEY_ROOMS);
             if ("null".equals(rooms)) {
                 return null;
             }
@@ -561,9 +511,8 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     private void parseJoinRoomInfo(String response) {
         try {
             JSONObject responseJson = new JSONObject(response);
-            mRoomId = responseJson.optString(Config.KEY_ROOM_ID);
-            mRoomToken = responseJson.optString(Config.KEY_ROOM_TOKEN);
-            mWsUrl = responseJson.optString(Config.KEY_WS_URL);
+            mRoomId = responseJson.optString(Constants.KEY_ROOM_ID);
+            mRoomToken = responseJson.optString(Constants.KEY_ROOM_TOKEN);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -594,7 +543,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         ArrayList<RoomInfo> liveRooms = null;
         try {
             JSONObject responseJson = new JSONObject(response[0]);
-            JSONArray liveRoomArray = responseJson.optJSONArray(Config.KEY_ROOMS);
+            JSONArray liveRoomArray = responseJson.optJSONArray(Constants.KEY_ROOMS);
             if (liveRoomArray == null) {
                 Log.e(TAG, "get live only rooms failed !");
                 return null;
@@ -705,8 +654,8 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     private void createForwardJob() {
         if (mForwardJob == null) {
             mForwardJob = new QNForwardJob();
-            mForwardJob.setForwardJobId(mRoomId);
-            mForwardJob.setPublishUrl(String.format(getString(R.string.publish_url), mRoomId, mSerialNum++));
+            mForwardJob.setForwardJobId(String.format(getString(R.string.forward_job_id), mUserInfo.getUserId()));
+            mForwardJob.setPublishUrl(String.format(getString(R.string.publish_url), mUserInfo.getUserId(), mSerialNum++));
             mForwardJob.setAudioTrack(mLocalAudioTrack);
             mForwardJob.setVideoTrack(mLocalVideoTrack);
             mForwardJob.setInternalForward(true);
@@ -721,9 +670,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             mQNMergeJob = new QNMergeJob();
         }
         // 设置合流任务 id，该 id 为合流任务的唯一标识符
-        mQNMergeJob.setMergeJobId(mRoomId);
+        mQNMergeJob.setMergeJobId(String.format(getString(R.string.merge_job_id), mUserInfo.getUserId()));
         // 设置合流任务的推流地址，该场景下需保持一致
-        mQNMergeJob.setPublishUrl(String.format(getString(R.string.publish_url), mRoomId, mSerialNum++));
+        mQNMergeJob.setPublishUrl(String.format(getString(R.string.publish_url), mUserInfo.getUserId(), mSerialNum++));
         mQNMergeJob.setWidth(Config.STREAMING_WIDTH);
         mQNMergeJob.setHeight(Config.STREAMING_HEIGHT);
         // QNMergeJob 中码率单位为 bps，所以，若期望码率为 1200kbps，则实际传入的参数值应为 1200 * 1000
@@ -748,7 +697,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             option.setTrackId(info.getTrackId());
             if (info.isVideo()) {
                 option.setX(isRemote ? Config.STREAMING_WIDTH / 2 : 0);
-                option.setY(Config.STREAMING_HEIGHT * 3 / 20);
+                option.setY(Config.STREAMING_HEIGHT * 4 / 23);
                 option.setZ(0);
                 option.setWidth(Config.STREAMING_WIDTH / 2);
                 option.setHeight(Config.STREAMING_HEIGHT / 2);
@@ -800,18 +749,22 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     private void showPkRequestDialog(PkRequestInfo info) {
-        View view = LayoutInflater.from(this).inflate(R.layout.dialog_handle_pk_request, null);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_handle_request, null);
         TextView content = view.findViewById(R.id.request_pk_info);
-        Button acceptBtn = view.findViewById(R.id.accept_pk_btn);
-        Button refuseBtn = view.findViewById(R.id.refuse_pk_btn);
+        Button acceptBtn = view.findViewById(R.id.accept_btn);
+        Button refuseBtn = view.findViewById(R.id.refuse_btn);
 
         content.setText(String.format(getString(R.string.request_pk_text), info.getNickName()));
+        acceptBtn.setText(R.string.accept_pk);
+        refuseBtn.setText(R.string.refuse_pk);
 
-        final Dialog dialog = new AlertDialog.Builder(this, R.style.DialogTheme)
-                .setCancelable(false)
-                .create();
-        dialog.show();
-        dialog.setContentView(view);
+        if (mPkRequestDialog == null) {
+            mPkRequestDialog = new AlertDialog.Builder(this, R.style.DialogTheme)
+                    .setCancelable(false)
+                    .create();
+        }
+        mPkRequestDialog.show();
+        mPkRequestDialog.setContentView(view);
 
         acceptBtn.setOnClickListener(v1 -> {
             if (mEngine == null || mSignalClient == null) {
@@ -821,22 +774,25 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                 mPkCandidatesFragment.dismiss();
             }
             mIsPkAccepted = true;
-            mSignalClient.replyPk(info.getRoomId(), mIsPkAccepted);
-            dialog.dismiss();
+            mSignalClient.answerPk(info.getRoomId(), mIsPkAccepted);
+            mPkRequestDialog.dismiss();
         });
         refuseBtn.setOnClickListener(arg0 -> {
             if (mSignalClient == null) {
                 return;
             }
             mIsPkAccepted = false;
-            mSignalClient.replyPk(info.getRoomId(), mIsPkAccepted);
-            dialog.dismiss();
+            mSignalClient.answerPk(info.getRoomId(), mIsPkAccepted);
+            mPkRequestDialog.dismiss();
         });
     }
 
     private void showBeRefusedDialog() {
-        View view = LayoutInflater.from(this).inflate(R.layout.dialog_refuse_pk_request, null);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_tips, null);
+        TextView content = view.findViewById(R.id.dialog_content_text);
         Button sureBtn = view.findViewById(R.id.ok_btn);
+        content.setText(getString(R.string.remote_refused_pk_request));
+        sureBtn.setText(getString(R.string.confirm_be_refused));
 
         final Dialog dialog = new AlertDialog.Builder(this, R.style.DialogTheme)
                 .setCancelable(false)
@@ -847,9 +803,41 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         sureBtn.setOnClickListener(v1 -> dialog.dismiss());
     }
 
-    private void startStreamingByCreateRoom() {
-        mSubThreadHandler.post(() -> QNAppServer.getInstance().createRoom(
-                mUserInfo.getUserId(), mModifiedRoomNameText.getText().toString().trim(), new QNAppServer.OnRequestResultCallback() {
+    private void showPkReqTimeoutDialog() {
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_tips, null);
+        TextView content = view.findViewById(R.id.dialog_content_text);
+        Button sureBtn = view.findViewById(R.id.ok_btn);
+        content.setText(getString(R.string.pk_timeout_content));
+        sureBtn.setText(getString(R.string.confirm_text));
+
+        final Dialog dialog = new AlertDialog.Builder(this, R.style.DialogTheme)
+                .setCancelable(false)
+                .create();
+        dialog.show();
+        dialog.setContentView(view);
+
+        sureBtn.setOnClickListener(v1 -> dialog.dismiss());
+    }
+
+    private void showReconnectFailedDialog() {
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_tips, null);
+        TextView content = view.findViewById(R.id.dialog_content_text);
+        Button sureBtn = view.findViewById(R.id.ok_btn);
+        content.setText(getString(R.string.tips_reconnect_failed));
+        sureBtn.setText(getString(R.string.confirm_text));
+
+        final Dialog dialog = new AlertDialog.Builder(this, R.style.DialogTheme)
+                .setCancelable(false)
+                .create();
+        dialog.show();
+        dialog.setContentView(view);
+
+        sureBtn.setOnClickListener(v1 -> finish());
+    }
+
+    private void joinRoomByCreate() {
+        QNAppServer.getInstance().createRoom(
+                mUserInfo.getUserId(), mModifiedRoomNameText.getText().toString().trim(), "pk", new QNAppServer.OnRequestResultCallback() {
                     @Override
                     public void onRequestSuccess(String responseMsg) {
                         joinRoomWithResponseInfo(responseMsg);
@@ -857,32 +845,42 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
 
                     @Override
                     public void onRequestFailed(int code, String reason) {
-                        mMainHandler.post(() -> {
-                            ToastUtils.showShortToast(getString(R.string.tips_create_room_failed) + " : " + reason);
-                            if (mLoadingDialog != null && mLoadingDialog.isShowing()) {
-                                mLoadingDialog.dismiss();
-                            }
-                        });
-                    }
-                }));
-    }
-
-    private void startStreamingByExistRoom(String roomId) {
-        mSubThreadHandler.post(() -> QNAppServer.getInstance().refreshRoom(roomId, new QNAppServer.OnRequestResultCallback() {
-            @Override
-            public void onRequestSuccess(String responseMsg) {
-                joinRoomWithResponseInfo(responseMsg);
-            }
-
-            @Override
-            public void onRequestFailed(int code, String reason) {
-                mMainHandler.post(() -> {
-                    if (mLoadingDialog != null && mLoadingDialog.isShowing()) {
-                        mLoadingDialog.dismiss();
+                        ToastUtils.showShortToast(getString(R.string.toast_create_room_failed) + " : " + reason);
+                        if (mLoadingDialog != null && mLoadingDialog.isShowing()) {
+                            mLoadingDialog.dismiss();
+                        }
                     }
                 });
-            }
-        }));
+    }
+
+    private void startStreaming() {
+        ThreadUtils.getFixedThreadPool().execute(() ->
+                QNAppServer.getInstance().getRoomInfoByCreator(mUserInfo.getUserId(), new QNAppServer.OnRequestResultCallback() {
+                    @Override
+                    public void onRequestSuccess(String responseMsg) {
+                        RoomInfo roomInfo = parseRoomInfo(responseMsg);
+                        if (roomInfo == null) {
+                            joinRoomByCreate();
+                        } else {
+                            QNAppServer.getInstance().closeRoom(mUserInfo.getUserId(), roomInfo.getId(), new QNAppServer.OnRequestResultCallback() {
+                                @Override
+                                public void onRequestSuccess(String responseMsg) {
+                                    joinRoomByCreate();
+                                }
+
+                                @Override
+                                public void onRequestFailed(int code, String reason) {
+                                    ToastUtils.showShortToast(getString(R.string.toast_close_room_failed) + " : " + reason);
+                                }
+                            });
+                        }
+                    }
+
+                    @Override
+                    public void onRequestFailed(int code, String reason) {
+                        ToastUtils.showShortToast(getString(R.string.toast_get_live_rooms_failed) + " : " + reason);
+                    }
+                }));
     }
 
     private void joinRoom(String roomToken) {
@@ -901,8 +899,8 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                 public void onRequestSuccess(String responseMsg) {
                     try {
                         JSONObject jsonObject = new JSONObject(responseMsg);
-                        mRoomId = jsonObject.optString(Config.KEY_ROOM_ID);
-                        mRoomToken = jsonObject.optString(Config.KEY_ROOM_TOKEN);
+                        mRoomId = jsonObject.optString(Constants.KEY_ROOM_ID);
+                        mRoomToken = jsonObject.optString(Constants.KEY_ROOM_TOKEN);
                         if (mEngine != null) {
                             mEngine.joinRoom(mRoomToken);
                         }
@@ -924,11 +922,6 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         // 加入 RTC 房间
         joinRoom(mRoomToken);
 
-        // websocket 连接
-        mSignalClient = new QNSignalClient(mWsUrl);
-        mSignalClient.setOnSignalClientListener(mOnSignalClientListener);
-        mSignalClient.connect();
-
         connectIM();
         mMainHandler.post(() -> setChatViewVisible(View.VISIBLE));
     }
@@ -942,7 +935,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             // 1. PK 发起者首先要停止合流转推
             if (mQNMergeJob != null) {
                 Log.i(TAG, "停止合流任务：" + mMergeJobId);
-                mEngine.stopMergeStream(mMergeJobId);
+                mEngine.stopMergeStream(mMergeJobId, JOB_STOP_DELAY_TIME);
                 mMergeJobId = null;
                 mQNMergeJob = null;
             }
@@ -978,14 +971,16 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                 @Override
                 public void onMicrophoneSettingChanged(boolean isOn) {
                     if (mEngine != null) {
-                        mEngine.muteLocalAudio(!isOn);
+                        mIsMicrophoneOn = isOn;
+                        mEngine.muteLocalAudio(!mIsMicrophoneOn);
                     }
                 }
 
                 @Override
                 public void onSpeakerSettingChanged(boolean isOn) {
                     if (mEngine != null) {
-                        mEngine.muteRemoteAudio(!isOn);
+                        mIsSpeakerOn = isOn;
+                        mEngine.muteRemoteAudio(!mIsSpeakerOn);
                     }
                 }
 
@@ -1028,12 +1023,30 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                     mPkUserList.add(mTargetPkRoomInfo.getCreator());
                 }
                 break;
+            case RECONNECTING:
+                ToastUtils.showShortToast(getString(R.string.toast_reconnecting));
+                if (mForwardJob != null) {
+                    mForwardJob = null;
+                }
+                if (mQNMergeJob != null) {
+                    mQNMergeJob = null;
+                }
+                break;
+            case RECONNECTED:
+                ToastUtils.showShortToast(getString(R.string.toast_reconnected));
+                if (mIsPkMode) {
+                    createMergeJob();
+                } else {
+                    createForwardJob();
+                }
+                break;
         }
     }
 
     @Override
     public void onRoomLeft() {
         Log.i(TAG, "onRoomLeft");
+        mMergeTrackOptions.clear();
         if (mIsPkMode) {
             joinRoom(mTargetPkRoomToken);
         }
@@ -1053,12 +1066,12 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
 
     @Override
     public void onRemoteUserReconnecting(String remoteUserId) {
-        Log.i(TAG, "onRemoteUserReconnecting : " + remoteUserId);
+        ToastUtils.showShortToast("远端用户正在重连");
     }
 
     @Override
     public void onRemoteUserReconnected(String remoteUserId) {
-        Log.i(TAG, "onRemoteUserReconnected : " + remoteUserId);
+        ToastUtils.showShortToast("远端用户已重新连接");
     }
 
     @Override
@@ -1103,6 +1116,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     @Override
     public void onRemoteUnpublished(String remoteUserId, List<QNTrackInfo> list) {
         Log.i(TAG, "onRemoteUnpublished : " + remoteUserId);
+        if (mRemoteTrackList != null) {
+            mRemoteTrackList.removeAll(list);
+        }
     }
 
     @Override
@@ -1173,7 +1189,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         // PK 请求接受方停止单路转推
         if (!mIsPkRequester && mForwardJob != null) {
             Log.i(TAG, "停止转推任务：" + mForwardJob.getForwardJobId());
-            mEngine.stopForwardJob(mForwardJob.getForwardJobId());
+            mEngine.stopForwardJob(mForwardJob.getForwardJobId(), JOB_STOP_DELAY_TIME);
             mIsForwardJobStreaming = false;
             mForwardJob = null;
         }
@@ -1199,7 +1215,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         // PK 请求接受方停止合流转推
         if (!mIsPkRequester && mQNMergeJob != null) {
             Log.i(TAG, "停止合流任务：" + mMergeJobId);
-            mEngine.stopMergeStream(mMergeJobId);
+            mEngine.stopMergeStream(mMergeJobId, JOB_STOP_DELAY_TIME);
             mIsPkMode = false;
             mMergeJobId = null;
             mQNMergeJob = null;
@@ -1265,18 +1281,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                 }
             }
             break;
-            case QNErrorCode.ERROR_AUTH_FAIL:
-            case QNErrorCode.ERROR_RECONNECT_TOKEN_ERROR: {
-                if (errorCode == QNErrorCode.ERROR_RECONNECT_TOKEN_ERROR) {
-                    ToastUtils.showShortToast("ERROR_RECONNECT_TOKEN_ERROR 即将重连，请注意网络质量！");
-                }
-                if (errorCode == QNErrorCode.ERROR_AUTH_FAIL) {
-                    ToastUtils.showShortToast("ERROR_AUTH_FAIL 即将重连");
-                }
-                // rejoin Room
-                mMainHandler.postDelayed(() -> joinRoom(mRoomToken), 1000);
-            }
-            break;
+            case QNErrorCode.ERROR_RECONNECT_TOKEN_ERROR:
+                showReconnectFailedDialog();
+                break;
             case QNErrorCode.ERROR_ROOM_CLOSED:
                 disconnectWithErrorMessage("房间被关闭");
                 break;
@@ -1294,38 +1301,10 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
 
     }
 
-    private QNSignalClient.OnSignalClientListener mOnSignalClientListener = new QNSignalClient.OnSignalClientListener() {
-        @Override
-        public void onConnected() {
-            if (mSignalClient != null) {
-                mSignalClient.sendAuthMessage(QNAppServer.getInstance().getSignalAuthToken());
-            }
-        }
-
-        @Override
-        public void onAuthorized() {
-            ToastUtils.showShortToast("socket 认证成功!");
-        }
-
-        @Override
-        public boolean onReconnectHandled() {
-            mSubThreadHandler.postDelayed(() -> {
-                if (mSignalClient != null) {
-                    Log.e(TAG, "QNSignalClient onReconnectHandled");
-                    mSignalClient.connect();
-                }
-            }, 1000);
-            return true;
-        }
-
-        @Override
-        public void onReconnectFailed() {
-            ToastUtils.showShortToast("重连失败!");
-        }
-
+    private OnSignalClientListener mOnSignalClientListener = new OnSignalClientListener() {
         @Override
         public void onPkRequestLaunched(PkRequestInfo requestInfo) {
-            mPkRequesterInfo = new UserInfo(requestInfo.getUserId(), requestInfo.getNickName(), "");
+            mPkRequesterInfo = new UserInfo(requestInfo.getUserId(), requestInfo.getNickName(), "", "");
             showPkRequestDialog(requestInfo);
         }
 
@@ -1367,7 +1346,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                 mPkRoomId = pkRoomId;
                 // 停止当前房间的单路转推任务
                 if (mForwardJob != null) {
-                    mEngine.stopForwardJob(mForwardJob.getForwardJobId());
+                    mEngine.stopForwardJob(mForwardJob.getForwardJobId(), JOB_STOP_DELAY_TIME);
                     mForwardJob = null;
                     mIsForwardJobStreaming = false;
                 }
@@ -1381,6 +1360,14 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         }
 
         @Override
+        public void onPkRequestTimeout() {
+            if (mPkRequestDialog != null && mPkRequestDialog.isShowing()) {
+                mPkRequestDialog.dismiss();
+            }
+            showPkReqTimeoutDialog();
+        }
+
+        @Override
         public void onPkEnd() {
             handleEndPk();
         }
@@ -1391,13 +1378,37 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         }
 
         @Override
-        public void onClosed(int code, String reason) {
-            ToastUtils.showShortToast("socket 已关闭!");
+        public void onJoinRequestLaunched(AudioParticipant info) {
+
+        }
+
+        @Override
+        public void onJoinRequestHandled(String reqUserId, String roomId, boolean isAccepted, int position) {
+
+        }
+
+        @Override
+        public void onAudienceJoin(AudioParticipant info) {
+
+        }
+
+        @Override
+        public void onAudienceLeft(AudioParticipant info) {
+
+        }
+
+        @Override
+        public void onJoinRequestTimeout(String reqUserId) {
+
+        }
+
+        @Override
+        public void onRoomClosed() {
+
         }
 
         @Override
         public void onError(int errorCode, String errorMessage) {
-            // socket 连接断开，无法正常直播，退出直播页面
             switch (errorCode) {
                 case ROOM_NOT_EXIST:
                     ToastUtils.showShortToast(getString(R.string.toast_room_not_exist));
@@ -1408,9 +1419,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                 case ROOM_NOT_IN_PK:
                     ToastUtils.showShortToast(getString(R.string.toast_room_not_in_pk));
                     break;
-                default:
-                    ToastUtils.showShortToast("Signal error : {" + errorCode + ", " + errorMessage + "}");
-                    finish();
+                case INVALID_PARAMETER:
+                    ToastUtils.showShortToast(getString(R.string.toast_invalid_parameter));
+                    break;
             }
         }
     };
@@ -1756,11 +1767,11 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         addOnSoftKeyBoardVisibleListener(findViewById(R.id.live_room_layout), new SoftInputStatusListener() {
             @Override
             public void onSoftInputStatusChanged(boolean visible, int softInputHeight) {
-                if (visible) {
+                if (visible || mChatBottomPanel.isSelectingEmoji()) {
                     mChatBottomPanel.setSoftInputHeight(softInputHeight);
                     mChatBottomPanel.isShowInputAboveKeyboard(true);
                 } else {
-                    mChatBottomPanel.isShowInputAboveKeyboard(false);
+                    mChatBottomPanel.hidePanels();
                 }
             }
         });
@@ -1843,25 +1854,13 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     private void streamerSwitchToBackstage() {
-        if (DataInterface.isLogin()) {
-            Log.i(TAG,"send streamer switch to backstage message!");
-
-            ChatroomSignal signalMessage = new ChatroomSignal();
-            signalMessage.setId(ChatroomKit.getCurrentUser().getUserId());
-            signalMessage.setSignal(SIGNAL_STREAMER_SWITCH_TO_BACKSTAGE);
-            ChatroomKit.sendMessage(signalMessage);
-        }
+        QNImage image = new QNImage(getApplicationContext());
+        image.setResourceId(R.drawable.pause_publish);
+        mEngine.pushCameraTrackWithImage(image);
     }
 
     private void streamerBackToLiving() {
-        if (DataInterface.isLogin()) {
-            Log.i(TAG,"send streamer back to living message!");
-
-            ChatroomSignal signalMessage = new ChatroomSignal();
-            signalMessage.setId(ChatroomKit.getCurrentUser().getUserId());
-            signalMessage.setSignal(SIGNAL_STREAMER_BACK_TO_LIVING);
-            ChatroomKit.sendMessage(signalMessage);
-        }
+        mEngine.pushCameraTrackWithImage(null);
     }
 
     private void quitChatRoom() {
@@ -1873,13 +1872,28 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                 if (DataInterface.isLogin()) {
                     ChatroomUserQuit userQuit = new ChatroomUserQuit();
                     userQuit.setId(ChatroomKit.getCurrentUser().getUserId());
-                    ChatroomKit.sendMessage(userQuit);
+                    ChatroomKit.sendMessage(userQuit, new IRongCallback.ISendMessageCallback() {
+                        @Override
+                        public void onAttached(io.rong.imlib.model.Message message) {
+                        }
+
+                        @Override
+                        public void onSuccess(io.rong.imlib.model.Message message) {
+                            DataInterface.logout();
+                        }
+
+                        @Override
+                        public void onError(io.rong.imlib.model.Message message, RongIMClient.ErrorCode errorCode) {
+                            DataInterface.logout();
+                        }
+                    });
                 }
             }
 
             @Override
             public void onError(RongIMClient.ErrorCode errorCode) {
                 ChatroomKit.removeEventHandler(handler);
+                DataInterface.logout();
                 Log.i(TAG, "quitChatRoom failed errorCode = " + errorCode);
             }
         });
@@ -1889,6 +1903,11 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         if (ChatroomKit.getCurrentUser() == null) {
             return;
         }
+
+        // IM signal 初始化
+        mSignalClient = new QNIMSignalClient();
+        mSignalClient.setOnSignalClientListener(mOnSignalClientListener);
+
         //发送欢迎信令
         ChatroomWelcome welcomeMessage = new ChatroomWelcome();
         welcomeMessage.setId(ChatroomKit.getCurrentUser().getUserId());
@@ -1966,15 +1985,22 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                                                  final SoftInputStatusListener listener) {
         root.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             private boolean isVisibleForLast = false;
+            private int statusBarHeight = 0;
 
             @Override
             public void onGlobalLayout() {
+                if (statusBarHeight == 0) {
+                    int resourceId = getApplicationContext().getResources().getIdentifier("status_bar_height", "dimen", "android");
+                    if (resourceId > 0) {
+                        statusBarHeight = getApplicationContext().getResources().getDimensionPixelSize(resourceId);
+                    }
+                }
                 Rect rect = new Rect();
                 root.getWindowVisibleDisplayFrame(rect);
                 // 可见屏幕的高度
                 int displayHeight = rect.bottom - rect.top;
                 // 屏幕整体的高度
-                int height = root.getHeight();
+                int height = root.getHeight() - statusBarHeight;
                 // 键盘高度
                 int keyboardHeight = height - displayHeight;
                 boolean visible = (double) displayHeight / height < 0.8;
@@ -1982,10 +2008,6 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                     listener.onSoftInputStatusChanged(visible, keyboardHeight);
                 }
                 isVisibleForLast = visible;
-
-                if (!isVisibleForLast && mChatBottomPanel.isInputPanelVisible()) {
-                    setBottomBtnsVisible(View.INVISIBLE);
-                }
             }
         });
     }

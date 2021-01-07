@@ -40,4 +40,14 @@ public class QNSignalErrorCode {
      * 房间未在 PK 中，不能结束 PK
      */
     public static final int ROOM_NOT_IN_PK = 10013;
+
+    /**
+     * 上麦位置已被占用
+     */
+    public static final int POSITION_OCCUPIED = 10016;
+
+    /**
+     * 非法参数
+     */
+    public static final int INVALID_PARAMETER = 10031;
 }

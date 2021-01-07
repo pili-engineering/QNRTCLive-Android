@@ -79,6 +79,8 @@
         android:layout_width="match_parent"
         android:layout_height="200dp"
         android:layout_marginTop="70dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <com.qiniu.droid.rtc.live.demo.im.gift.GiftView
@@ -90,13 +92,13 @@
 
     <com.qiniu.droid.rtc.live.demo.im.like.HeartLayout
         android:id="@+id/heart_layout"
-        android:layout_width="86dp"
-        android:layout_height="match_parent"
-        android:layout_above="@+id/bottom_bar"
-        android:layout_alignParentEnd="true"
-        android:layout_marginEnd="40dp"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent" />
+        android:layout_width="100dp"
+        android:layout_height="0dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/close_button"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <fragment
         android:id="@+id/bottom_bar"
@@ -104,8 +106,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:layout_margin="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         tools:layout="@layout/fragment_bottombar" />
 
     <ImageButton

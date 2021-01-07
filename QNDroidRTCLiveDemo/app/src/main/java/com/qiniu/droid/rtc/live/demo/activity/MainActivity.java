@@ -1,9 +1,17 @@
 package com.qiniu.droid.rtc.live.demo.activity;
 
+import android.app.Dialog;
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Build;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.fragment.app.Fragment;
@@ -14,6 +22,7 @@ import com.qiniu.droid.rtc.live.demo.base.BaseActivity;
 import com.qiniu.droid.rtc.live.demo.fragment.HomeFragment;
 import com.qiniu.droid.rtc.live.demo.fragment.MineFragment;
 import com.qiniu.droid.rtc.live.demo.utils.BarUtils;
+import com.qiniu.droid.rtc.live.demo.utils.Constants;
 import com.qiniu.droid.rtc.live.demo.utils.PermissionChecker;
 import com.qiniu.droid.rtc.live.demo.utils.SharedPreferencesUtils;
 import com.qiniu.droid.rtc.live.demo.utils.ToastUtils;
@@ -69,11 +78,7 @@ public class MainActivity extends BaseActivity {
                 break;
             case R.id.iv_main_start_live:
                 if (isPermissionOK()) {
-                    if (!SharedPreferencesUtils.resourceReady(this)) {
-                        startActivity(LoadResourcesActivity.class);
-                    } else {
-                        startActivity(LiveRoomActivity.class);
-                    }
+                    showModeSelectDialog();
                 }
                 break;
             case R.id.tv_main_mine:
@@ -114,6 +119,42 @@ public class MainActivity extends BaseActivity {
         } else {
             fragmentTransaction.show(fragment).commit();
         }
+    }
+
+    private void showModeSelectDialog() {
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_mode_select, null);
+        ImageButton closeBtn = view.findViewById(R.id.close_btn);
+        LinearLayout videoModeLayout = view.findViewById(R.id.video_communication_layout);
+        LinearLayout audioModeLayout = view.findViewById(R.id.audio_communication_layout);
+
+        final Dialog dialog = new Dialog(this);
+        dialog.setContentView(view);
+        Window window = dialog.getWindow();
+        if (window == null) {
+            return;
+        }
+        window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        window.setBackgroundDrawableResource(R.drawable.bg_mode_select);
+        WindowManager.LayoutParams lp = window.getAttributes();
+        lp.dimAmount = 0.0f;
+        window.setAttributes(lp);
+        dialog.show();
+
+        closeBtn.setOnClickListener(v1 -> dialog.dismiss());
+        videoModeLayout.setOnClickListener(v -> {
+            dialog.dismiss();
+            if (!SharedPreferencesUtils.resourceReady(MainActivity.this)) {
+                startActivity(LoadResourcesActivity.class);
+            } else {
+                startActivity(LiveRoomActivity.class);
+            }
+        });
+        audioModeLayout.setOnClickListener(v -> {
+            dialog.dismiss();
+            Intent intent = new Intent(MainActivity.this, AudioRoomActivity.class);
+            intent.putExtra(Constants.KEY_IS_AUDIO_ANCHOR, true);
+            startActivity(intent);
+        });
     }
 
     private boolean isPermissionOK() {

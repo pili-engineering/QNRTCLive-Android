@@ -3,13 +3,18 @@ package com.qiniu.droid.rtc.live.demo.activity;
 import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.qiniu.droid.rtc.live.demo.R;
+import com.qiniu.droid.rtc.live.demo.utils.BarUtils;
 import com.qiniu.droid.rtc.live.demo.view.LoadingDialog;
 
 public class WebActivity extends AppCompatActivity {
@@ -22,11 +27,17 @@ public class WebActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mWebView = new WebView(this);
-        setContentView(mWebView);
+        initStatusBar();
+        setContentView(R.layout.activity_rtc_web);
+        ImageView backBtn = findViewById(R.id.back_btn);
+        TextView titleView = findViewById(R.id.tv_bar_title);
+        mWebView = findViewById(R.id.qn_rtc_webview);
 
         mLoadingDialog = new LoadingDialog.Builder(this).create();
         mLoadingDialog.show();
+
+        backBtn.setOnClickListener(v -> finish());
+        titleView.setText("七牛实时音视频");
 
         WebSettings webSettings = mWebView.getSettings();
         webSettings.setSupportZoom(true);
@@ -75,5 +86,11 @@ public class WebActivity extends AppCompatActivity {
         super.onDestroy();
         mWebView.destroy();
         mWebView = null;
+    }
+
+    private void initStatusBar() {
+        BarUtils.setStatusBarColor(this, R.color.blue);
+        // 设置状态栏文字颜色及图标为浅色
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
     }
 }

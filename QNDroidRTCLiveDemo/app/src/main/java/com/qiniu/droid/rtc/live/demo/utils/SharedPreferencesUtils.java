@@ -38,33 +38,36 @@ public class SharedPreferencesUtils {
      * Description: 设置和获取用户名
      */
     public static void setAccountInfo(Context context, AccountInfo accountInfo){
-        SharedPreferences sp = context.getSharedPreferences(Config.SP_USER_INFO_NAME, Context.MODE_PRIVATE);
+        SharedPreferences sp = context.getSharedPreferences(Constants.SP_USER_INFO_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sp.edit();
-        editor.putString(Config.KEY_USER_ID, accountInfo.getUserInfo().getUserId());
-        editor.putString(Config.KEY_NICK_NAME, accountInfo.getUserInfo().getNickName());
-        editor.putString(Config.KEY_GENDER, accountInfo.getUserInfo().getGender());
-        editor.putString(Config.KEY_AUTH_TOKEN, accountInfo.getToken());
+        editor.putString(Constants.KEY_USER_ID, accountInfo.getUserInfo().getUserId());
+        editor.putString(Constants.KEY_NICK_NAME, accountInfo.getUserInfo().getNickName());
+        editor.putString(Constants.KEY_GENDER, accountInfo.getUserInfo().getGender());
+        editor.putString(Constants.KEY_AVATAR, accountInfo.getUserInfo().getAvatar());
+        editor.putString(Constants.KEY_AUTH_TOKEN, accountInfo.getToken());
         editor.apply();
     }
 
     public static AccountInfo getAccountInfo(Context context) {
-        SharedPreferences sp = context.getSharedPreferences(Config.SP_USER_INFO_NAME, Context.MODE_PRIVATE);
-        String userId = sp.getString(Config.KEY_USER_ID, null);
+        SharedPreferences sp = context.getSharedPreferences(Constants.SP_USER_INFO_NAME, Context.MODE_PRIVATE);
+        String userId = sp.getString(Constants.KEY_USER_ID, null);
         if (userId == null) {
             return null;
         }
-        String nickName = sp.getString(Config.KEY_NICK_NAME, null);
-        String gender = sp.getString(Config.KEY_GENDER, null);
-        String token = sp.getString(Config.KEY_AUTH_TOKEN, null);
-        return new AccountInfo(new UserInfo(userId, nickName, gender), token);
+        String nickName = sp.getString(Constants.KEY_NICK_NAME, null);
+        String gender = sp.getString(Constants.KEY_GENDER, null);
+        String avatar = sp.getString(Constants.KEY_AVATAR, "");
+        String token = sp.getString(Constants.KEY_AUTH_TOKEN, null);
+        return new AccountInfo(new UserInfo(userId, nickName, gender, avatar), token);
     }
 
     public static void updateUserInfoForAccount(Context context, UserInfo userInfo) {
-        SharedPreferences sp = context.getSharedPreferences(Config.SP_USER_INFO_NAME, Context.MODE_PRIVATE);
+        SharedPreferences sp = context.getSharedPreferences(Constants.SP_USER_INFO_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sp.edit();
-        editor.putString(Config.KEY_USER_ID, userInfo.getUserId());
-        editor.putString(Config.KEY_NICK_NAME, userInfo.getNickName());
-        editor.putString(Config.KEY_GENDER, userInfo.getGender());
+        editor.putString(Constants.KEY_USER_ID, userInfo.getUserId());
+        editor.putString(Constants.KEY_NICK_NAME, userInfo.getNickName());
+        editor.putString(Constants.KEY_GENDER, userInfo.getGender());
+        editor.putString(Constants.KEY_AVATAR, userInfo.getAvatar());
         editor.apply();
     }
 
@@ -77,7 +80,7 @@ public class SharedPreferencesUtils {
     }
 
     public static void clearAccountInfo(Context context) {
-        SharedPreferences sp = context.getSharedPreferences(Config.SP_USER_INFO_NAME, Context.MODE_PRIVATE);
+        SharedPreferences sp = context.getSharedPreferences(Constants.SP_USER_INFO_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sp.edit();
         editor.clear();
         editor.apply();

@@ -10,10 +10,11 @@ import android.widget.TextView;
 
 import com.google.gson.Gson;
 import com.qiniu.droid.rtc.live.demo.R;
+import com.qiniu.droid.rtc.live.demo.activity.AudioRoomActivity;
 import com.qiniu.droid.rtc.live.demo.activity.PlayingActivity;
 import com.qiniu.droid.rtc.live.demo.adapter.LiveRoomListAdapter;
 import com.qiniu.droid.rtc.live.demo.model.RoomInfo;
-import com.qiniu.droid.rtc.live.demo.utils.Config;
+import com.qiniu.droid.rtc.live.demo.model.RoomType;
 import com.qiniu.droid.rtc.live.demo.utils.Constants;
 import com.qiniu.droid.rtc.live.demo.utils.QNAppServer;
 import com.qiniu.droid.rtc.live.demo.utils.ThreadUtils;
@@ -32,9 +33,6 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class HomeFragment extends Fragment {
     private static final String TAG = "HomeFragment";
@@ -81,7 +79,7 @@ public class HomeFragment extends Fragment {
     private void parseData(String responseBody){
         try {
             JSONObject jsonObject = new JSONObject(responseBody);
-            String rooms = jsonObject.optString(Config.KEY_ROOMS);
+            String rooms = jsonObject.optString(Constants.KEY_ROOMS);
             if ("null".equals(rooms)) {
                 getActivity().runOnUiThread(() -> {
                     ToastUtils.showShortToast(getString(R.string.toast_no_live_rooms));
@@ -108,7 +106,13 @@ public class HomeFragment extends Fragment {
         if (mListAdapter == null) {
             mListAdapter = new LiveRoomListAdapter(getContext());
             mListAdapter.setOnSelectLiveRoomListener(roomInfo -> {
-                Intent intent = new Intent(getContext(), PlayingActivity.class);
+                Intent intent;
+                if (RoomType.VOICE_LIVE.getValue().equals(roomInfo.getStatus())) {
+                    intent = new Intent(getContext(), AudioRoomActivity.class);
+                    intent.putExtra(Constants.KEY_IS_AUDIO_ANCHOR, false);
+                } else {
+                    intent = new Intent(getContext(), PlayingActivity.class);
+                }
                 intent.putExtra(Constants.INTENT_ROOM_INFO, roomInfo);
                 startActivity(intent);
             });

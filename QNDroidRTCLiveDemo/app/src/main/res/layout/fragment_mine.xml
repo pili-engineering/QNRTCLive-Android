@@ -22,11 +22,12 @@
                 android:background="@drawable/bg_mine_top" />
 
             <com.qiniu.droid.rtc.live.demo.view.CircleImageView
-                android:id="@+id/iv_mine_avater"
+                android:id="@+id/iv_mine_avatar"
                 android:layout_width="100dp"
                 android:layout_height="100dp"
                 android:layout_centerHorizontal="true"
                 android:layout_marginTop="40dp"
+                android:src="@mipmap/default_avatar"
                 app:civ_border_color="@color/translucent"
                 app:civ_border_width="5dp" />
 
@@ -34,7 +35,7 @@
                 android:id="@+id/tv_mine_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_below="@+id/iv_mine_avater"
+                android:layout_below="@+id/iv_mine_avatar"
                 android:layout_centerHorizontal="true"
                 android:layout_marginTop="20dp"
                 android:text="牛小七"
