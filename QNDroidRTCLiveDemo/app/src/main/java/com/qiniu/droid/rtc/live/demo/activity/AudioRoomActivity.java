@@ -189,18 +189,18 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
         if (!mIsAudioAnchor) {
             mSubThreadHandler.post(() -> QNAppServer.getInstance().enterRoom(
                     mSelfInfo.getUserInfo().getUserId(), mRoomInfo.getId(), new QNAppServer.OnRequestResultCallback() {
-                @Override
-                public void onRequestSuccess(String responseMsg) {
-                    joinRoomWithResponseInfo(responseMsg);
-                }
+                        @Override
+                        public void onRequestSuccess(String responseMsg) {
+                            joinRoomWithResponseInfo(responseMsg);
+                        }
 
-                @Override
-                public void onRequestFailed(int code, String reason) {
-                    Log.e(TAG, "code = " + code + " reason = " + reason);
-                    ToastUtils.showShortToast("enter room failed : " + reason);
-                    finish();
-                }
-            }));
+                        @Override
+                        public void onRequestFailed(int code, String reason) {
+                            Log.e(TAG, "code = " + code + " reason = " + reason);
+                            ToastUtils.showShortToast("enter room failed : " + reason);
+                            finish();
+                        }
+                    }));
         }
     }
 
@@ -208,18 +208,20 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
     protected void onDestroy() {
         super.onDestroy();
 
-        ThreadUtils.getSingleThreadExecutor().execute(() -> QNAppServer.getInstance().leaveRoom(mSelfInfo.getUserInfo().getUserId(), mRoomInfo.getId(),
-                new QNAppServer.OnRequestResultCallback() {
-                    @Override
-                    public void onRequestSuccess(String responseMsg) {
+        if (mRoomInfo != null) {
+            ThreadUtils.getSingleThreadExecutor().execute(() -> QNAppServer.getInstance().leaveRoom(mSelfInfo.getUserInfo().getUserId(), mRoomInfo.getId(),
+                    new QNAppServer.OnRequestResultCallback() {
+                        @Override
+                        public void onRequestSuccess(String responseMsg) {
 
-                    }
+                        }
 
-                    @Override
-                    public void onRequestFailed(int code, String reason) {
+                        @Override
+                        public void onRequestFailed(int code, String reason) {
 
-                    }
-                }));
+                        }
+                    }));
+        }
 
         if (mSignalClient != null) {
             mSignalClient.disconnect();
@@ -512,9 +514,6 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
     }
 
     private void showRequestJoinDialog(int pos) {
-        if (isFinishing()) {
-            return;
-        }
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_handle_request, null);
         TextView content = view.findViewById(R.id.request_pk_info);
         Button acceptBtn = view.findViewById(R.id.accept_btn);
@@ -543,9 +542,6 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
     }
 
     private void showRequestLaunchedDialog(AudioParticipant participant) {
-        if (isFinishing()) {
-            return;
-        }
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_handle_request, null);
         TextView content = view.findViewById(R.id.request_pk_info);
         Button acceptBtn = view.findViewById(R.id.accept_btn);
@@ -578,9 +574,6 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
     }
 
     private void showBeRefusedDialog() {
-        if (isFinishing()) {
-            return;
-        }
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_tips, null);
         TextView content = view.findViewById(R.id.dialog_content_text);
         Button sureBtn = view.findViewById(R.id.ok_btn);
@@ -597,9 +590,6 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
     }
 
     private void showJoinReqTimeoutDialog() {
-        if (isFinishing()) {
-            return;
-        }
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_tips, null);
         TextView content = view.findViewById(R.id.dialog_content_text);
         Button sureBtn = view.findViewById(R.id.ok_btn);
@@ -1354,6 +1344,7 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
             @Override
             public void onError(RongIMClient.ErrorCode errorCode) {
                 ChatroomKit.removeEventHandler(handler);
+                DataInterface.logout();
                 Log.i(TAG, "quitChatRoom failed errorCode = " + errorCode);
             }
         });
