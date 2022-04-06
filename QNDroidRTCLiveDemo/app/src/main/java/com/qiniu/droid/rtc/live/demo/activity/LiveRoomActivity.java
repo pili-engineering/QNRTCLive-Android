@@ -45,9 +45,11 @@ import com.qiniu.bytedanceplugin.ByteDancePlugin;
 import com.qiniu.bytedanceplugin.model.ProcessType;
 import com.qiniu.droid.rtc.QNCameraSwitchResultCallback;
 import com.qiniu.droid.rtc.QNCaptureVideoCallback;
+import com.qiniu.droid.rtc.QNClientRole;
 import com.qiniu.droid.rtc.QNCustomMessage;
 import com.qiniu.droid.rtc.QNErrorCode;
 import com.qiniu.droid.rtc.QNLocalAudioPacketCallback;
+import com.qiniu.droid.rtc.QNMediaRelayState;
 import com.qiniu.droid.rtc.QNRTCEngine;
 import com.qiniu.droid.rtc.QNRTCEngineEventListener;
 import com.qiniu.droid.rtc.QNRTCSetting;
@@ -109,12 +111,14 @@ import com.qiniu.droid.rtc.model.QNStretchMode;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.webrtc.Size;
 import org.webrtc.VideoFrame;
 
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -1301,6 +1305,16 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
 
     }
 
+    @Override
+    public void onClientRoleChanged(QNClientRole qnClientRole) {
+
+    }
+
+    @Override
+    public void onMediaRelayStateChanged(Map<String, QNMediaRelayState> map) {
+
+    }
+
     private OnSignalClientListener mOnSignalClientListener = new OnSignalClientListener() {
         @Override
         public void onPkRequestLaunched(PkRequestInfo requestInfo) {
@@ -1652,6 +1666,11 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     private QNCaptureVideoCallback mCaptureVideoCallback = new QNCaptureVideoCallback() {
+        @Override
+        public int[] onCaptureOpened(List<Size> list, List<Integer> list1) {
+            return new int[]{-1, -1};
+        }
+
         @Override
         public void onCaptureStarted() {
             mByteDancePlugin.init(mEffectResourcePath);
