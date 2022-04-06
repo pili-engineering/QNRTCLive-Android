@@ -29,8 +29,10 @@ import com.bumptech.glide.Glide;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.gson.Gson;
 import com.orzangleli.xdanmuku.DanmuContainerView;
+import com.qiniu.droid.rtc.QNClientRole;
 import com.qiniu.droid.rtc.QNCustomMessage;
 import com.qiniu.droid.rtc.QNErrorCode;
+import com.qiniu.droid.rtc.QNMediaRelayState;
 import com.qiniu.droid.rtc.QNRTCEngine;
 import com.qiniu.droid.rtc.QNRTCEngineEventListener;
 import com.qiniu.droid.rtc.QNRTCSetting;
@@ -84,6 +86,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -1090,6 +1093,16 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
 
     @Override
     public void onMessageReceived(QNCustomMessage message) {
+
+    }
+
+    @Override
+    public void onClientRoleChanged(QNClientRole qnClientRole) {
+
+    }
+
+    @Override
+    public void onMediaRelayStateChanged(Map<String, QNMediaRelayState> map) {
 
     }
 
