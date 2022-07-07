@@ -354,7 +354,7 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
 
     private PLOnInfoListener mOnInfoListener = new PLOnInfoListener() {
         @Override
-        public void onInfo(int what, int extra) {
+        public void onInfo(int what, int extra, Object o) {
             Log.i(TAG, "OnInfo, what = " + what + ", extra = " + extra);
             switch (what) {
                 case PLOnInfoListener.MEDIA_INFO_BUFFERING_START:
@@ -419,34 +419,37 @@ public class PlayingActivity extends BaseActivity implements Handler.Callback {
         }
     };
 
-    private PLOnErrorListener mOnErrorListener = errorCode -> {
-        Log.e(TAG, "Error happened, errorCode = " + errorCode);
-        switch (errorCode) {
-            case PLOnErrorListener.ERROR_CODE_IO_ERROR:
-                if (!NetworkUtils.isConnected()) {
-                    ToastUtils.showShortToast(getResources().getString(R.string.toast_network_connect_failed));
-                } else {
-                    handleReconnect();
-                }
-                break;
-            case PLOnErrorListener.ERROR_CODE_OPEN_FAILED:
-                if (!NetworkUtils.isConnected()) {
-                    ToastUtils.showShortToast(getResources().getString(R.string.toast_network_connect_failed));
+    private PLOnErrorListener mOnErrorListener = new PLOnErrorListener() {
+        @Override
+        public boolean onError(int errorCode, Object o) {
+            Log.e(TAG, "Error happened, errorCode = " + errorCode);
+            switch (errorCode) {
+                case PLOnErrorListener.ERROR_CODE_IO_ERROR:
+                    if (!NetworkUtils.isConnected()) {
+                        ToastUtils.showShortToast(getResources().getString(R.string.toast_network_connect_failed));
+                    } else {
+                        handleReconnect();
+                    }
                     break;
-                }
-                if (!handleReconnect()) {
-                    ToastUtils.showShortToast(getResources().getString(R.string.toast_player_open_failed));
-                    finish();
-                }
-                break;
-            default:
-                ToastUtils.showShortToast("位置错误!");
-                break;
+                case PLOnErrorListener.ERROR_CODE_OPEN_FAILED:
+                    if (!NetworkUtils.isConnected()) {
+                        ToastUtils.showShortToast(getResources().getString(R.string.toast_network_connect_failed));
+                        break;
+                    }
+                    if (!handleReconnect()) {
+                        ToastUtils.showShortToast(getResources().getString(R.string.toast_player_open_failed));
+                        finish();
+                    }
+                    break;
+                default:
+                    ToastUtils.showShortToast("位置错误!");
+                    break;
+            }
+            if (mLoadingDialog.isShowing()) {
+                mLoadingDialog.dismiss();
+            }
+            return true;
         }
-        if (mLoadingDialog.isShowing()) {
-            mLoadingDialog.dismiss();
-        }
-        return true;
     };
 
     private void leaveRoom() {

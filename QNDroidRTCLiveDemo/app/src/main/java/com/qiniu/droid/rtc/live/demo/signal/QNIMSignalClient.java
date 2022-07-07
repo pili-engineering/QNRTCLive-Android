@@ -174,17 +174,19 @@ public class QNIMSignalClient implements ISignalClient, Handler.Callback {
                             return true;
                         }
                         if (errorCode == QNSignalErrorCode.SUCCESS) {
-                            mOnSignalClientListener.onReplyPkSuccess();
+                            String relayRtcRoom = json.optString(Constants.KEY_RELAY_ROOM);
+                            String relayRoomToken = json.optString(Constants.KEY_RELAY_ROOM_TOKEN);
+                            mOnSignalClientListener.onReplyPkSuccess(relayRtcRoom, relayRoomToken);
                         } else {
                             Log.e(TAG, "reply pk failed : " + json.optString(Constants.KEY_ERROR));
                             mOnSignalClientListener.onReplyPkFailed(errorCode, json.optString(Constants.KEY_ERROR));
                         }
                     } else if (method == QNSignalMethod.ON_PK_ANSWER) {
                         boolean isAccepted = json.optBoolean("accepted");
-                        String roomToken = isAccepted ? json.optString(Constants.KEY_ROOM_TOKEN) : null;
-                        String rtcRoom = json.optString("rtcRoom");
+                        String relayRoom = json.optString(Constants.KEY_RELAY_ROOM);
+                        String relayRoomToken = json.optString(Constants.KEY_RELAY_ROOM_TOKEN);
                         if (mOnSignalClientListener != null) {
-                            mOnSignalClientListener.onPkRequestHandled(isAccepted, rtcRoom, roomToken);
+                            mOnSignalClientListener.onPkRequestHandled(isAccepted, relayRoom, relayRoomToken);
                         }
                     } else if (method == QNSignalMethod.END_PK_RES) {
                         if (mOnSignalClientListener == null) {

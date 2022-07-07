@@ -6,7 +6,7 @@ public class Config {
      */
     public static final int STREAMING_WIDTH = 720;
     public static final int STREAMING_HEIGHT = 1280;
-    public static final int STREAMING_FPS = 30;
+    public static final int STREAMING_FPS = 24;
     public static final int STREAMING_BITRATE = 2000 * 1000;
     public static final String STREAMING_BACKGROUND = "http://pili-playback.qnsdk.com/streaming_black_background.png";
 

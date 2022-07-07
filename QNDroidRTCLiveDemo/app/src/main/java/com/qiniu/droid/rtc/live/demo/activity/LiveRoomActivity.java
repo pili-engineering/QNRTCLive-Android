@@ -37,29 +37,60 @@ import androidx.constraintlayout.widget.Group;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
+import io.rong.imlib.IRongCallback;
+import io.rong.imlib.RongIMClient;
+import io.rong.imlib.model.Conversation;
+import io.rong.imlib.model.MessageContent;
+import io.rong.message.TextMessage;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.gson.Gson;
 import com.orzangleli.xdanmuku.DanmuContainerView;
 import com.qiniu.bytedanceplugin.ByteDancePlugin;
 import com.qiniu.bytedanceplugin.model.ProcessType;
+import com.qiniu.droid.rtc.QNCameraEventListener;
 import com.qiniu.droid.rtc.QNCameraSwitchResultCallback;
-import com.qiniu.droid.rtc.QNCaptureVideoCallback;
+import com.qiniu.droid.rtc.QNCameraVideoTrack;
+import com.qiniu.droid.rtc.QNCameraVideoTrackConfig;
+import com.qiniu.droid.rtc.QNClientEventListener;
+import com.qiniu.droid.rtc.QNClientMode;
 import com.qiniu.droid.rtc.QNClientRole;
+import com.qiniu.droid.rtc.QNConnectionDisconnectedInfo;
+import com.qiniu.droid.rtc.QNConnectionState;
 import com.qiniu.droid.rtc.QNCustomMessage;
-import com.qiniu.droid.rtc.QNErrorCode;
-import com.qiniu.droid.rtc.QNLocalAudioPacketCallback;
+import com.qiniu.droid.rtc.QNDirectLiveStreamingConfig;
+import com.qiniu.droid.rtc.QNLiveStreamingErrorInfo;
+import com.qiniu.droid.rtc.QNLiveStreamingListener;
+import com.qiniu.droid.rtc.QNLocalAudioTrackStats;
+import com.qiniu.droid.rtc.QNLocalTrack;
+import com.qiniu.droid.rtc.QNLocalVideoTrackStats;
+import com.qiniu.droid.rtc.QNMediaRelayConfiguration;
+import com.qiniu.droid.rtc.QNMediaRelayInfo;
+import com.qiniu.droid.rtc.QNMediaRelayResultCallback;
 import com.qiniu.droid.rtc.QNMediaRelayState;
-import com.qiniu.droid.rtc.QNRTCEngine;
-import com.qiniu.droid.rtc.QNRTCEngineEventListener;
+import com.qiniu.droid.rtc.QNMicrophoneAudioTrack;
+import com.qiniu.droid.rtc.QNNetworkQuality;
+import com.qiniu.droid.rtc.QNPublishResultCallback;
+import com.qiniu.droid.rtc.QNRTC;
+import com.qiniu.droid.rtc.QNRTCClient;
+import com.qiniu.droid.rtc.QNRTCClientConfig;
+import com.qiniu.droid.rtc.QNRTCEventListener;
 import com.qiniu.droid.rtc.QNRTCSetting;
-import com.qiniu.droid.rtc.QNRoomState;
-import com.qiniu.droid.rtc.QNSourceType;
-import com.qiniu.droid.rtc.QNStatisticsReport;
+import com.qiniu.droid.rtc.QNRemoteAudioTrack;
+import com.qiniu.droid.rtc.QNRemoteAudioTrackStats;
+import com.qiniu.droid.rtc.QNRemoteTrack;
+import com.qiniu.droid.rtc.QNRemoteVideoTrack;
+import com.qiniu.droid.rtc.QNRemoteVideoTrackStats;
+import com.qiniu.droid.rtc.QNRenderMode;
 import com.qiniu.droid.rtc.QNSurfaceView;
-import com.qiniu.droid.rtc.QNTrackInfo;
-import com.qiniu.droid.rtc.QNTrackKind;
-import com.qiniu.droid.rtc.QNVideoFormat;
+import com.qiniu.droid.rtc.QNTrack;
+import com.qiniu.droid.rtc.QNTranscodingLiveStreamingConfig;
+import com.qiniu.droid.rtc.QNTranscodingLiveStreamingImage;
+import com.qiniu.droid.rtc.QNTranscodingLiveStreamingTrack;
+import com.qiniu.droid.rtc.QNVideoCaptureConfigPreset;
+import com.qiniu.droid.rtc.QNVideoEncoderConfig;
+import com.qiniu.droid.rtc.QNVideoFrameListener;
+import com.qiniu.droid.rtc.QNVideoFrameType;
 import com.qiniu.droid.rtc.live.demo.R;
 import com.qiniu.droid.rtc.live.demo.fragment.EffectFragment;
 import com.qiniu.droid.rtc.live.demo.fragment.LiveSettingFragment;
@@ -101,25 +132,20 @@ import com.qiniu.droid.rtc.live.demo.utils.ToastUtils;
 import com.qiniu.droid.rtc.live.demo.utils.ViewClickUtils;
 import com.qiniu.droid.rtc.live.demo.view.LoadingDialog;
 import com.qiniu.droid.rtc.model.QNAudioDevice;
-import com.qiniu.droid.rtc.model.QNBackGround;
-import com.qiniu.droid.rtc.model.QNForwardJob;
 import com.qiniu.droid.rtc.model.QNImage;
-import com.qiniu.droid.rtc.model.QNMergeJob;
-import com.qiniu.droid.rtc.model.QNMergeTrackOption;
-import com.qiniu.droid.rtc.model.QNStretchMode;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.webrtc.Size;
-import org.webrtc.VideoFrame;
 
 import java.io.File;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -127,20 +153,33 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-import io.rong.imlib.IRongCallback;
-import io.rong.imlib.RongIMClient;
-import io.rong.imlib.model.Conversation;
-import io.rong.imlib.model.MessageContent;
-import io.rong.message.TextMessage;
-
 import static com.qiniu.droid.rtc.live.demo.signal.QNSignalErrorCode.INVALID_PARAMETER;
 import static com.qiniu.droid.rtc.live.demo.signal.QNSignalErrorCode.ROOM_IN_PK;
 import static com.qiniu.droid.rtc.live.demo.signal.QNSignalErrorCode.ROOM_NOT_EXIST;
 import static com.qiniu.droid.rtc.live.demo.signal.QNSignalErrorCode.ROOM_NOT_IN_PK;
 
-public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEventListener, Handler.Callback {
+/**
+ * 直播 PK 场景实现方式
+ *
+ * 主要步骤如下：
+ * 1. 初始化视图
+ * 2. 初始化 RTC
+ * 3. 创建 QNRTCClient 对象
+ * 4. 创建本地音视频 Track
+ * 5. 加入房间
+ * 6. 发布本地音视频 Track
+ * 7. 创建单路转推直播流，进行直播
+ * 8. 通过业务逻辑完成 PK 请求的交互 (这里我们假设双方同意 PK)
+ * 9. 双方将本地音视频跨房媒体转发到对端房间
+ * 10. 订阅远端音视频 Track
+ * 11. 创建合流转推任务，并配置合流布局，注意需要使用和单路转推任务相同的推流地址，并实现抢流逻辑，创建成功后停止单路转推任务
+ * 12. 结束 PK 时停止跨房媒体转发
+ * 13. 重新开启单路转推任务，同样需要使用和合流转推任务相同的推流地址，并实现抢流逻辑，创建成功后停止合流转推任务
+ * 14. 离开房间
+ * 15. 反初始化 RTC 释放资源
+ */
+public class LiveRoomActivity extends AppCompatActivity implements QNRTCEventListener, QNClientEventListener, Handler.Callback {
     private static final String TAG = "LiveRoomActivity";
-    private static final int JOB_STOP_DELAY_TIME = 5000;
 
     private QNSurfaceView mLocalVideoSurfaceView;
     private QNSurfaceView mRemoteVideoSurfaceView;
@@ -160,14 +199,13 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     private LoadingDialog mLoadingDialog;
     private Dialog mPkRequestDialog;
 
-    private QNRTCEngine mEngine;
-    private QNForwardJob mForwardJob;
+    // 标记 RTC 的生命周期，确保 init/deinit 成对出现并执行
+    static boolean mRTCInit = false;
+    private QNRTCClient mClient;
 
-    private List<QNTrackInfo> mLocalTrackList = null;
-    private List<QNTrackInfo> mRemoteTrackList = null;
-
-    private QNTrackInfo mLocalVideoTrack;
-    private QNTrackInfo mLocalAudioTrack;
+    private QNCameraVideoTrack mCameraVideoTrack;
+    private QNMicrophoneAudioTrack mMicrophoneAudioTrack;
+    private List<QNLocalTrack> mLocalTracks;
 
     private LiveSettingFragment mLiveSettingFragment;
     private PkCandidatesFragment mPkCandidatesFragment;
@@ -177,45 +215,46 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
 
     private String mRoomId;
     private String mRoomToken;
-    private volatile boolean mIsForwardJobStreaming;
-    private volatile boolean mIsMergeJobStreaming;
-    private volatile boolean mIsLocalTracksMerged;
-    private volatile boolean mIsRemoteTracksMerged;
-    private boolean mReturnOriginalRoom;
+    private volatile boolean mIsDirectStreamingStarted;
+    private volatile boolean mIsTranscodingStreamingStarted;
     private volatile boolean mNeedResetFlashlight = false;
     private volatile boolean mIsMicrophoneOn = true;
     private volatile boolean mIsSpeakerOn = true;
+    private volatile boolean mIsPkEnd = true;
 
-    private int mSerialNum;
+    // 抢流逻辑的参数，从 1 开始递增，数值越大，优先级越高
+    private int mSerialNum = 1;
 
-    private QNRoomState mCurrentRoomState = QNRoomState.IDLE;
+    private QNConnectionState mCurrentConnectionState = QNConnectionState.DISCONNECTED;
     private UserInfo mUserInfo;
 
+    // 获取媒体质量统计信息
+    private Timer mStatsTimer;
+
     // PK 相关
-    private QNMergeJob mQNMergeJob;
-    private List<QNMergeTrackOption> mMergeTrackOptions;
-    private String mMergeJobId = null;
+    private QNDirectLiveStreamingConfig mDirectLiveStreamingConfig; // 单路转推配置类
+    private QNTranscodingLiveStreamingConfig mTranscodingLiveStreamingConfig; // 合流转推配置类
+    private List<QNTranscodingLiveStreamingTrack> mTranscodingLiveStreamingTracks; // 合流转推布局配置列表
+
     private List<UserInfo> mPkUserList;
     private UserInfo mPkRequesterInfo;
-    private String mPkRoomId;
-    private String mTargetPkRoomToken;
+    private String mRemoteRoomID;
     private volatile boolean mIsPkAccepted;
-    private volatile boolean mIsPkMode;
-    private boolean mIsPkRequester = false;
+    private List<RoomInfo> mLiveRoomsCanPk;
     private RoomInfo mTargetPkRoomInfo;
 
     // IM signal
     private QNIMSignalClient mSignalClient;
 
     private ScheduledExecutorService mExecutor;
-    private Semaphore captureStoppedSem = new Semaphore(1);
+    private final Semaphore captureStoppedSem = new Semaphore(1);
     private boolean mStreamingStopped;
     private Toast mAudienceNumberToast;
 
     private final Runnable mAudienceNumGetter = new Runnable() {
         @Override
         public void run() {
-            if (mRoomId != null && (mIsForwardJobStreaming || mIsMergeJobStreaming) && NetworkUtils.isConnected()) {
+            if (mRoomId != null && (mIsDirectStreamingStarted || mIsTranscodingStreamingStarted) && NetworkUtils.isConnected()) {
                 QNAppServer.getInstance().getRoomInfo(mRoomId, new QNAppServer.OnRequestResultCallback() {
                     @Override
                     public void onRequestSuccess(String responseMsg) {
@@ -242,6 +281,10 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.avtivity_live_room);
 
+        if (mRTCInit) {
+            showLifeCircleExceptionDialog();
+        }
+
         mUserInfo = SharedPreferencesUtils.getUserInfo(AppUtils.getApp());
         mMainHandler = new Handler();
         HandlerThread handlerThread = new HandlerThread(TAG);
@@ -252,13 +295,15 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         initStatusBar();
         initNavigationBar();
         // 初始化 QNRTCEngine
-        initQNRTCEngine();
+        initQNRTC();
         // 初始化本地发布 track
-        initLocalTrackInfoList();
+        initLocalTrackList();
         // 初始化字节跳动特效
         initByteDanceEffect();
         // 初始化 IM 控件
         initChatView();
+
+        startStatsTimer();
 
         mPkUserList = new ArrayList<>();
         mPkUserList.add(mUserInfo);
@@ -274,7 +319,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     @Override
     protected void onPause() {
         super.onPause();
-        mEngine.stopCapture();
+        mCameraVideoTrack.stopCapture();
         if (!mStreamingStopped) {
             streamerSwitchToBackstage();
         }
@@ -286,6 +331,8 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        mStatsTimer.cancel();
 
         if (mSignalClient != null) {
             mSignalClient.disconnect();
@@ -300,18 +347,24 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             mExecutor = null;
         }
 
-        if (mIsForwardJobStreaming && mForwardJob != null) {
-            mEngine.stopForwardJob(mForwardJob.getForwardJobId());
-            mForwardJob = null;
-            mIsForwardJobStreaming = false;
+        if (mDirectLiveStreamingConfig != null) {
+            mClient.stopLiveStreaming(mDirectLiveStreamingConfig);
+            mDirectLiveStreamingConfig = null;
         }
-        if (mIsMergeJobStreaming) {
-            Log.i(TAG, "stop merge stream : " + mMergeJobId);
-            mEngine.stopMergeStream(mMergeJobId);
-            mIsMergeJobStreaming = false;
+        if (mTranscodingLiveStreamingConfig != null) {
+            mClient.stopLiveStreaming(mTranscodingLiveStreamingConfig);
+            mTranscodingLiveStreamingConfig = null;
         }
-        mEngine.leaveRoom();
-        mEngine.destroy();
+        // 14. 离开房间
+        if (mClient != null) {
+            mClient.leave();
+        }
+        // 15. 反初始化 RTC 释放资源
+        if (mRTCInit) {
+            QNRTC.deinit();
+            mRTCInit = false;
+        }
+        mClient = null;
     }
 
     public void onClickStartLiveStreaming(View v) {
@@ -329,7 +382,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     public void onClickPk(View v) {
-        if (!mIsPkMode) {
+        if (mIsDirectStreamingStarted) {
             showLiveRoomsCanPk();
         } else {
             showPkParticipantsFragment();
@@ -342,20 +395,19 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     public void onClickSwitchCamera(View v) {
-        if (mEngine != null) {
-            mEngine.switchCamera(new QNCameraSwitchResultCallback() {
-                @Override
-                public void onCameraSwitchDone(boolean isFrontCamera) {
-                    mIsFrontCamera = isFrontCamera;
-                    mNeedResetFlashlight = true;
-                    updateProcessTypes();
-                }
+        mCameraVideoTrack.switchCamera(new QNCameraSwitchResultCallback() {
+            @Override
+            public void onSwitched(boolean isFrontCamera) {
+                mIsFrontCamera = isFrontCamera;
+                mNeedResetFlashlight = true;
+                updateProcessTypes();
+            }
 
-                @Override
-                public void onCameraSwitchError(String errorMessage) {
-                }
-            });
-        }
+            @Override
+            public void onError(String errorMessage) {
+
+            }
+        });
     }
 
     public void onClickLiveSetting(View v) {
@@ -403,8 +455,20 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         });
     }
 
+    private void showLifeCircleExceptionDialog() {
+        new AlertDialog.Builder(this)
+                .setMessage(R.string.toast_rtc_life_circle_exception)
+                .setCancelable(false)
+                .setPositiveButton("OK", (dialog, which) -> {
+                    dialog.cancel();
+                    finish();
+                })
+                .create()
+                .show();
+    }
+
     /**
-     * 初始化视图
+     * 1. 初始化视图
      */
     private void initViews() {
         mConstraintLayout = findViewById(R.id.live_room_layout);
@@ -431,24 +495,22 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     /**
-     * 初始化 QNRTCEngine
+     * 初始化 QNRTC
      */
-    private void initQNRTCEngine() {
-        // 1. VideoPreviewFormat 和 VideoEncodeFormat 建议保持一致
-        // 2. 如果远端连麦出现回声的现象，可以通过配置 setLowAudioSampleRateEnabled(true) 或者 setAEC3Enabled(true) 后再做进一步测试，并将设备信息反馈给七牛技术支持
-        QNVideoFormat format = new QNVideoFormat(Config.STREAMING_HEIGHT, Config.STREAMING_WIDTH, Config.STREAMING_FPS);
-        QNRTCSetting setting = new QNRTCSetting();
-        setting.setCameraID(QNRTCSetting.CAMERA_FACING_ID.FRONT)
+    private void initQNRTC() {
+        // 2. 初始化 RTC
+        QNRTCSetting setting = new QNRTCSetting()
                 .setHWCodecEnabled(false)
-                .setMaintainResolution(true)
-                .setVideoBitrate(Config.STREAMING_BITRATE)
-                .setVideoEncodeFormat(format)
-                .setVideoPreviewFormat(format);
-        mEngine = QNRTCEngine.createEngine(getApplicationContext(), setting, this);
-        mEngine.setCapturePreviewWindow(mLocalVideoSurfaceView);
-        mEngine.setCaptureVideoCallBack(mCaptureVideoCallback);
-        mEngine.muteLocalAudio(!mIsMicrophoneOn);
-        mEngine.muteRemoteAudio(!mIsSpeakerOn);
+                .setMaintainResolution(true);
+        QNRTC.init(this, setting, this);
+        QNRTC.setSpeakerphoneMuted(!mIsSpeakerOn);
+
+        // 3. 创建 QNRTCClient 对象
+        // 使用 LIVE 场景创建 QNRTCClient 实例
+        QNRTCClientConfig clientConfig = new QNRTCClientConfig(QNClientMode.LIVE, QNClientRole.BROADCASTER);
+        mClient = QNRTC.createClient(clientConfig, this);
+        mClient.setLiveStreamingListener(mLiveStreamingListener); // 设置 CDN 转推事件监听器
+        mRTCInit = true;
     }
 
     private void startCaptureAfterAcquire() {
@@ -457,44 +519,67 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        mEngine.startCapture();
+        mCameraVideoTrack.startCapture();
     }
 
     /**
-     * 初始化本地音视频 track
-     * 关于 Track 的概念介绍 https://doc.qnsdk.com/rtn/android/docs/preparation#5
+     * 4. 创建本地音视频 track
+     * 关于 Track 的概念介绍 https://developer.qiniu.com/rtc/8767/audio-and-video-collection-android
      */
-    private void initLocalTrackInfoList() {
-        mLocalTrackList = new ArrayList<>();
-        // 创建本地音频 track
-        mLocalAudioTrack = mEngine.createTrackInfoBuilder()
-                .setSourceType(QNSourceType.AUDIO)
-                .setMaster(true)
-                .create();
-        mEngine.setLocalAudioPacketCallback(mLocalAudioTrack, new QNLocalAudioPacketCallback() {
-            @Override
-            public int onPutExtraData(ByteBuffer extraData, int extraDataMaxSize) {
-                return 0;
-            }
-
-            @Override
-            public int onSetMaxEncryptSize(int frameSize) {
-                return 0;
-            }
-
-            @Override
-            public int onEncrypt(ByteBuffer frame, int frameSize, ByteBuffer encryptedFrame) {
-                return 0;
-            }
-        });
-        mLocalTrackList.add(mLocalAudioTrack);
+    private void initLocalTrackList() {
+        mLocalTracks = new ArrayList<>();
+        // 创建本地麦克风采集的音频 track
+        mMicrophoneAudioTrack = QNRTC.createMicrophoneAudioTrack();
+        mMicrophoneAudioTrack.setMuted(!mIsMicrophoneOn);
+        mLocalTracks.add(mMicrophoneAudioTrack);
 
         // 创建 Camera 采集的视频 Track
-        mLocalVideoTrack = mEngine.createTrackInfoBuilder()
-                .setSourceType(QNSourceType.VIDEO_CAMERA)
-                .setMaster(true)
-                .create();
-        mLocalTrackList.add(mLocalVideoTrack);
+        QNCameraVideoTrackConfig cameraVideoTrackConfig = new QNCameraVideoTrackConfig()
+                .setVideoCaptureConfig(QNVideoCaptureConfigPreset.CAPTURE_1280x720)
+                .setVideoEncoderConfig(new QNVideoEncoderConfig(
+                        Config.STREAMING_HEIGHT, Config.STREAMING_WIDTH,
+                        Config.STREAMING_FPS, Config.STREAMING_BITRATE));
+        mCameraVideoTrack = QNRTC.createCameraVideoTrack(cameraVideoTrackConfig);
+        mCameraVideoTrack.play(mLocalVideoSurfaceView);
+        mCameraVideoTrack.setVideoFrameListener(mVideoFrameListener);
+        mCameraVideoTrack.setCameraEventListener(mCameraEventListener);
+        mLocalTracks.add(mCameraVideoTrack);
+    }
+
+    private void startStatsTimer() {
+        mStatsTimer = new Timer();
+        mStatsTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                // local video track
+                Map<String, List<QNLocalVideoTrackStats>> localVideoTrackStats = mClient.getLocalVideoTrackStats();
+                for (Map.Entry<String, List<QNLocalVideoTrackStats>> entry : localVideoTrackStats.entrySet()) {
+                    for (QNLocalVideoTrackStats stats : entry.getValue()) {
+                        Log.i(TAG, "local: trackID : " + entry.getKey() + ", " + stats.toString());
+                    }
+                }
+                // local audio track
+                Map<String, QNLocalAudioTrackStats> localAudioTrackStats = mClient.getLocalAudioTrackStats();
+                for (Map.Entry<String, QNLocalAudioTrackStats> entry : localAudioTrackStats.entrySet()) {
+                    Log.i(TAG, "local: trackID : " + entry.getKey() + ", " + entry.getValue().toString());
+                }
+                // remote video track
+                Map<String, QNRemoteVideoTrackStats> remoteVideoTrackStats = mClient.getRemoteVideoTrackStats();
+                for (Map.Entry<String, QNRemoteVideoTrackStats> entry : remoteVideoTrackStats.entrySet()) {
+                    Log.i(TAG, "remote: trackID : " + entry.getKey() + ", " + entry.getValue().toString());
+                }
+                // remote audio track
+                Map<String, QNRemoteAudioTrackStats> remoteAudioTrackStats = mClient.getRemoteAudioTrackStats();
+                for (Map.Entry<String, QNRemoteAudioTrackStats> entry : remoteAudioTrackStats.entrySet()) {
+                    Log.i(TAG, "remote: trackID : " + entry.getKey() + ", " + entry.getValue().toString());
+                }
+                // network
+                Map<String, QNNetworkQuality> userNetworkQuality = mClient.getUserNetworkQuality();
+                for (Map.Entry<String, QNNetworkQuality> entry : userNetworkQuality.entrySet()) {
+                    Log.i(TAG, "remote: network quality: userID : " + entry.getKey() + ", " + entry.getValue().toString());
+                }
+            }
+        }, 0, 10000);
     }
 
     private RoomInfo parseRoomInfo(String responseBody) {
@@ -564,12 +649,12 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     private void showLiveRoomsCanPk() {
-        List<RoomInfo> liveRoomsCanPk = getLiveRoomsCanPk();
+        mLiveRoomsCanPk = getLiveRoomsCanPk();
         if (mPkCandidatesFragment == null) {
-            mPkCandidatesFragment = new PkCandidatesFragment(liveRoomsCanPk);
+            mPkCandidatesFragment = new PkCandidatesFragment(mLiveRoomsCanPk);
             mPkCandidatesFragment.setOnPkCandidateRoomClickListener(roomInfo -> {
-                mTargetPkRoomInfo = roomInfo;
                 if (mSignalClient != null) {
+                    // 8. 通过业务逻辑完成 PK 请求的交互，此处仅作示例演示
                     mSignalClient.startPk(roomInfo.getId());
                 } else {
                     ToastUtils.showShortToast(getString(R.string.toast_can_not_start_pk));
@@ -577,7 +662,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                 mPkCandidatesFragment.dismiss();
             });
         } else {
-            mPkCandidatesFragment.updateCandidateRooms(liveRoomsCanPk);
+            mPkCandidatesFragment.updateCandidateRooms(mLiveRoomsCanPk);
         }
         if (getSupportFragmentManager().findFragmentByTag(PkCandidatesFragment.TAG) == null) {
             mPkCandidatesFragment.show(getSupportFragmentManager(), PkCandidatesFragment.TAG);
@@ -601,11 +686,11 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                 @Override
                 public void onEndPkClicked() {
                     // 退出 PK
-                    if (mEngine == null) {
+                    if (mClient == null) {
                         return;
                     }
                     if (mSignalClient != null) {
-                        mSignalClient.endPk(mPkRoomId);
+                        mSignalClient.endPk(mRemoteRoomID);
                     }
                     mPkParticipantsFragment.dismiss();
                 }
@@ -655,65 +740,70 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                 .show();
     }
 
-    private void createForwardJob() {
-        if (mForwardJob == null) {
-            mForwardJob = new QNForwardJob();
-            mForwardJob.setForwardJobId(String.format(getString(R.string.forward_job_id), mUserInfo.getUserId()));
-            mForwardJob.setPublishUrl(String.format(getString(R.string.publish_url), mUserInfo.getUserId(), mSerialNum++));
-            mForwardJob.setAudioTrack(mLocalAudioTrack);
-            mForwardJob.setVideoTrack(mLocalVideoTrack);
-            mForwardJob.setInternalForward(true);
+    private void startDirectLiveStreaming() {
+        if (mDirectLiveStreamingConfig == null) {
+            mDirectLiveStreamingConfig = new QNDirectLiveStreamingConfig();
+            mDirectLiveStreamingConfig.setStreamID(String.format(getString(R.string.forward_job_id), mUserInfo.getUserId()));
+            // 设置单路转推任务的推流地址，该地址需和合流转推时保持一致，并使得 SerialNum 自增以提高直播流优先级
+            mDirectLiveStreamingConfig.setUrl(String.format(getString(R.string.publish_url), mUserInfo.getUserId(), mSerialNum++));
+            mDirectLiveStreamingConfig.setAudioTrack(mMicrophoneAudioTrack);
+            mDirectLiveStreamingConfig.setVideoTrack(mCameraVideoTrack);
         }
-        Log.i(TAG, "create forward job : " + mForwardJob.getForwardJobId());
-        mEngine.createForwardJob(mForwardJob);
+        Log.i(TAG, "create direct live streaming job : " + mDirectLiveStreamingConfig.getStreamID());
+        mClient.startLiveStreaming(mDirectLiveStreamingConfig);
     }
 
-    private void createMergeJob() {
+    private void startTranscodingLiveStreaming() {
         // 创建合流任务对象
-        if (mQNMergeJob == null) {
-            mQNMergeJob = new QNMergeJob();
-        }
-        // 设置合流任务 id，该 id 为合流任务的唯一标识符
-        mQNMergeJob.setMergeJobId(String.format(getString(R.string.merge_job_id), mUserInfo.getUserId()));
-        // 设置合流任务的推流地址，该场景下需保持一致
-        mQNMergeJob.setPublishUrl(String.format(getString(R.string.publish_url), mUserInfo.getUserId(), mSerialNum++));
-        mQNMergeJob.setWidth(Config.STREAMING_WIDTH);
-        mQNMergeJob.setHeight(Config.STREAMING_HEIGHT);
-        // QNMergeJob 中码率单位为 bps，所以，若期望码率为 1200kbps，则实际传入的参数值应为 1200 * 1000
-        mQNMergeJob.setBitrate(Config.STREAMING_BITRATE);
-        mQNMergeJob.setFps(Config.STREAMING_FPS);
-        mQNMergeJob.setStretchMode(QNStretchMode.ASPECT_FILL);
+        if (mTranscodingLiveStreamingConfig == null) {
+            mTranscodingLiveStreamingConfig = new QNTranscodingLiveStreamingConfig();
 
-        QNBackGround qnBackGround = new QNBackGround();
-        qnBackGround.setFile(Config.STREAMING_BACKGROUND);
-        qnBackGround.setX(0);
-        qnBackGround.setY(0);
-        qnBackGround.setH(Config.STREAMING_HEIGHT);
-        qnBackGround.setW(Config.STREAMING_WIDTH);
-        mQNMergeJob.setBackground(qnBackGround);
+            // 设置合流任务 id，该 id 为合流任务的唯一标识符
+            mTranscodingLiveStreamingConfig.setStreamID(String.format(getString(R.string.merge_job_id), mUserInfo.getUserId()));
+
+            mTranscodingLiveStreamingConfig.setWidth(Config.STREAMING_WIDTH);
+            mTranscodingLiveStreamingConfig.setHeight(Config.STREAMING_HEIGHT);
+            // QNTranscodingLiveStreamingConfig 中码率单位为 kbps，所以，若期望码率为 1200kbps，则实际传入的参数值应为 1200
+            mTranscodingLiveStreamingConfig.setBitrate(Config.STREAMING_BITRATE);
+            mTranscodingLiveStreamingConfig.setVideoFrameRate(Config.STREAMING_FPS);
+            mTranscodingLiveStreamingConfig.setRenderMode(QNRenderMode.ASPECT_FILL);
+
+            QNTranscodingLiveStreamingImage background = new QNTranscodingLiveStreamingImage();
+            background.setUrl(Config.STREAMING_BACKGROUND);
+            background.setX(0);
+            background.setY(0);
+            background.setHeight(Config.STREAMING_HEIGHT);
+            background.setWidth(Config.STREAMING_WIDTH);
+            mTranscodingLiveStreamingConfig.setBackground(background);
+        }
+        // 设置合流任务的推流地址，该地址需和单路转推时保持一致，并使得 SerialNum 自增以提高直播流优先级
+        mTranscodingLiveStreamingConfig.setUrl(String.format(getString(R.string.publish_url), mUserInfo.getUserId(), mSerialNum++));
+
         // 创建合流任务
-        mEngine.createMergeJob(mQNMergeJob);
+        mClient.startLiveStreaming(mTranscodingLiveStreamingConfig);
     }
 
-    private void setMergeOptions(List<QNTrackInfo> trackInfoList, boolean isRemote) {
-        for (QNTrackInfo info : trackInfoList) {
-            QNMergeTrackOption option = new QNMergeTrackOption();
-            option.setTrackId(info.getTrackId());
-            if (info.isVideo()) {
-                option.setX(isRemote ? Config.STREAMING_WIDTH / 2 : 0);
-                option.setY(Config.STREAMING_HEIGHT * 4 / 23);
-                option.setZ(0);
-                option.setWidth(Config.STREAMING_WIDTH / 2);
-                option.setHeight(Config.STREAMING_HEIGHT / 2);
+    private void setTranscodingLiveStreamingTracks(List<QNTrack> trackList, boolean isRemote) {
+        for (QNTrack track : trackList) {
+            QNTranscodingLiveStreamingTrack liveStreamingTrack = new QNTranscodingLiveStreamingTrack();
+            liveStreamingTrack.setTrackID(track.getTrackID());
+            if (track.isVideo()) {
+                // 设置视频画面在合流布局中的位置，需要根据您期望视频在合流画布中的位置自行定义 x、y 的值
+                liveStreamingTrack.setX(isRemote ? Config.STREAMING_WIDTH / 2 : 0); // 设置 Track 在合流布局中位置的左上角 x 坐标，此处仅做示例
+                liveStreamingTrack.setY(Config.STREAMING_HEIGHT * 4 / 23); // 设置 Track 在合流布局中位置的左上角 y 坐标，此处仅做示例
+                liveStreamingTrack.setZOrder(0); // 设置合流层级，值越大，画面层级越高
+                liveStreamingTrack.setWidth(Config.STREAMING_WIDTH / 2); // 设置 Track 在合流布局中的宽度
+                liveStreamingTrack.setHeight(Config.STREAMING_HEIGHT / 2); // 设置 Track 在合流布局中的高度，此处仅做示例
             }
-            if (mMergeTrackOptions == null) {
-                mMergeTrackOptions = new ArrayList<>();
+            if (mTranscodingLiveStreamingTracks == null) {
+                mTranscodingLiveStreamingTracks = new ArrayList<>();
             }
-            mMergeTrackOptions.add(option);
+            mTranscodingLiveStreamingTracks.add(liveStreamingTrack);
         }
     }
 
     private void relayoutLocalSurfaceView(boolean isPkMode) {
+        mRemoteVideoSurfaceView.setVisibility(isPkMode ? View.VISIBLE : View.GONE);
         ConstraintSet constraintSet = new ConstraintSet();
         constraintSet.clone(mConstraintLayout);
         if (isPkMode) {
@@ -721,17 +811,11 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             constraintSet.connect(mLocalVideoSurfaceView.getId(), ConstraintSet.TOP, R.id.pk_top_divider, ConstraintSet.BOTTOM);
             constraintSet.connect(mLocalVideoSurfaceView.getId(), ConstraintSet.END, R.id.background_divider, ConstraintSet.START);
             constraintSet.connect(mLocalVideoSurfaceView.getId(), ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START);
-            if (mRemoteVideoSurfaceView != null && mRemoteVideoSurfaceView.getVisibility() == View.GONE) {
-                mRemoteVideoSurfaceView.setVisibility(View.VISIBLE);
-            }
         } else {
             constraintSet.connect(mLocalVideoSurfaceView.getId(), ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM);
             constraintSet.connect(mLocalVideoSurfaceView.getId(), ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP);
             constraintSet.connect(mLocalVideoSurfaceView.getId(), ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START);
             constraintSet.connect(mLocalVideoSurfaceView.getId(), ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END);
-            if (mRemoteVideoSurfaceView != null && mRemoteVideoSurfaceView.getVisibility() == View.VISIBLE) {
-                mRemoteVideoSurfaceView.setVisibility(View.GONE);
-            }
         }
         constraintSet.applyTo(mConstraintLayout);
     }
@@ -770,22 +854,27 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         mPkRequestDialog.show();
         mPkRequestDialog.setContentView(view);
 
+        // 接收远端的 PK 请求处理
         acceptBtn.setOnClickListener(v1 -> {
-            if (mEngine == null || mSignalClient == null) {
+            if (mClient == null || mSignalClient == null) {
                 return;
             }
             if (mPkCandidatesFragment != null && !mPkCandidatesFragment.isHidden()) {
                 mPkCandidatesFragment.dismiss();
             }
             mIsPkAccepted = true;
+            // 回复 PK 请求
             mSignalClient.answerPk(info.getRoomId(), mIsPkAccepted);
             mPkRequestDialog.dismiss();
         });
+
+        // 拒绝远端的 PK 请求处理
         refuseBtn.setOnClickListener(arg0 -> {
             if (mSignalClient == null) {
                 return;
             }
             mIsPkAccepted = false;
+            // 回复 PK 请求
             mSignalClient.answerPk(info.getRoomId(), mIsPkAccepted);
             mPkRequestDialog.dismiss();
         });
@@ -888,37 +977,10 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     private void joinRoom(String roomToken) {
-        if (mEngine != null) {
-            mEngine.joinRoom(roomToken);
+        if (mClient != null) {
+            // 5. 加入房间
+            mClient.join(roomToken);
         }
-    }
-
-    private void rejoinSelfRoom() {
-        mSubThreadHandler.post(() -> {
-            if (mEngine == null) {
-                return;
-            }
-            QNAppServer.getInstance().refreshRoom(mRoomId, new QNAppServer.OnRequestResultCallback() {
-                @Override
-                public void onRequestSuccess(String responseMsg) {
-                    try {
-                        JSONObject jsonObject = new JSONObject(responseMsg);
-                        mRoomId = jsonObject.optString(Constants.KEY_ROOM_ID);
-                        mRoomToken = jsonObject.optString(Constants.KEY_ROOM_TOKEN);
-                        if (mEngine != null) {
-                            mEngine.joinRoom(mRoomToken);
-                        }
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-                }
-
-                @Override
-                public void onRequestFailed(int code, String reason) {
-
-                }
-            });
-        });
     }
 
     private void joinRoomWithResponseInfo(String responseMsg) {
@@ -930,31 +992,43 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         mMainHandler.post(() -> setChatViewVisible(View.VISIBLE));
     }
 
+    /**
+     * 结束 PK
+     */
     private void handleEndPk() {
-        if (!mIsPkMode) {
+        if (mIsPkEnd) {
             return;
         }
-        mIsPkMode = false;
-        if (mIsPkRequester) {
-            // 1. PK 发起者首先要停止合流转推
-            if (mQNMergeJob != null) {
-                Log.i(TAG, "停止合流任务：" + mMergeJobId);
-                mEngine.stopMergeStream(mMergeJobId, JOB_STOP_DELAY_TIME);
-                mMergeJobId = null;
-                mQNMergeJob = null;
+        mIsPkEnd = true;
+        // 12. 停止跨房媒体转发
+        mClient.stopMediaRelay(new QNMediaRelayResultCallback() {
+            @Override
+            public void onResult(Map<String, QNMediaRelayState> stateMap) {
+                if (stateMap.containsKey(mRemoteRoomID) && stateMap.get(mRemoteRoomID) == QNMediaRelayState.STOPPED) {
+                    //13. 创建单路转推任务
+                    startDirectLiveStreaming();
+                    if (mPkRequesterInfo != null) {
+                        mPkUserList.remove(mPkRequesterInfo);
+                        mPkRequesterInfo = null;
+                    }
+                    if (mTargetPkRoomInfo != null) {
+                        mPkUserList.remove(mTargetPkRoomInfo.getCreator());
+                        mTargetPkRoomInfo = null;
+                    }
+                    mMainHandler.post(() -> {
+                        updateBtnsSources(false);
+                        relayoutLocalSurfaceView(false);
+                        if (mPkParticipantsFragment != null && mPkParticipantsFragment.isVisible()) {
+                            mPkParticipantsFragment.dismiss();
+                        }
+                    });
+                    mRemoteRoomID = null;
+                }
             }
-            // 2. PK 发起者要离开房间
-            mEngine.leaveRoom();
-            // 3. 回到自己房间
-            mReturnOriginalRoom = true;
-        } else {
-            // 创建单路转推任务
-            createForwardJob();
-            mPkUserList.remove(mPkRequesterInfo);
-        }
-        mMainHandler.post(() -> {
-            if (mPkParticipantsFragment != null && mPkParticipantsFragment.isVisible()) {
-                mPkParticipantsFragment.dismiss();
+
+            @Override
+            public void onError(int errorCode, String description) {
+
             }
         });
     }
@@ -974,29 +1048,27 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
 
                 @Override
                 public void onMicrophoneSettingChanged(boolean isOn) {
-                    if (mEngine != null) {
+                    if (mMicrophoneAudioTrack != null) {
                         mIsMicrophoneOn = isOn;
-                        mEngine.muteLocalAudio(!mIsMicrophoneOn);
+                        mMicrophoneAudioTrack.setMuted(!mIsMicrophoneOn);
                     }
                 }
 
                 @Override
                 public void onSpeakerSettingChanged(boolean isOn) {
-                    if (mEngine != null) {
-                        mIsSpeakerOn = isOn;
-                        mEngine.muteRemoteAudio(!mIsSpeakerOn);
-                    }
+                    mIsSpeakerOn = isOn;
+                    QNRTC.setSpeakerphoneMuted(!mIsSpeakerOn);
                 }
 
                 @Override
                 public void onFlashlightSettingChanged(boolean isOn) {
-                    if (mEngine == null) {
+                    if (mCameraVideoTrack == null) {
                         return;
                     }
                     if (isOn) {
-                        mEngine.turnLightOn();
+                        mCameraVideoTrack.turnLightOn();
                     } else {
-                        mEngine.turnLightOff();
+                        mCameraVideoTrack.turnLightOff();
                     }
                 }
             });
@@ -1007,10 +1079,15 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     @Override
-    public void onRoomStateChanged(QNRoomState qnRoomState) {
-        Log.i(TAG, "onRoomStateChanged : " + qnRoomState.name());
-        mCurrentRoomState = qnRoomState;
-        switch (qnRoomState) {
+    public void onAudioRouteChanged(QNAudioDevice qnAudioDevice) {
+
+    }
+
+    @Override
+    public void onConnectionStateChanged(QNConnectionState state, @Nullable QNConnectionDisconnectedInfo info) {
+        Log.i(TAG, "onConnectionStateChanged : " + state.name());
+        mCurrentConnectionState = state;
+        switch (state) {
             case CONNECTED:
                 if (mLoadingDialog != null && mLoadingDialog.isShowing()) {
                     mLoadingDialog.dismiss();
@@ -1019,321 +1096,215 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
                     mExecutor = Executors.newSingleThreadScheduledExecutor();
                     mExecutor.scheduleAtFixedRate(mAudienceNumGetter, 0, Config.GET_AUDIENCE_NUM_PERIOD, TimeUnit.SECONDS);
                 }
-                mEngine.publishTracks(mLocalTrackList);
+                // 6. 发布本地音视频 Track
+                mClient.publish(new QNPublishResultCallback() {
+                    @Override
+                    public void onPublished() {
+                        Log.i(TAG, "onLocalPublished");
+                        // 预先对本地合流布局进行配置，以应对需要 PK 的场景
+                        setTranscodingLiveStreamingTracks(new ArrayList<>(mLocalTracks), false);
+                        // 7. 创建单路转推直播流，进行直播
+                        startDirectLiveStreaming();
+                    }
+
+                    @Override
+                    public void onError(int errorCode, String errorMessage) {
+
+                    }
+                }, mCameraVideoTrack, mMicrophoneAudioTrack);
                 updateUIAfterLiving();
-                if (mIsPkMode) {
-                    // PK 场景下需要创建合流任务并重新进行推流
-                    createMergeJob();
-                    mPkUserList.add(mTargetPkRoomInfo.getCreator());
-                }
                 break;
             case RECONNECTING:
                 ToastUtils.showShortToast(getString(R.string.toast_reconnecting));
-                if (mForwardJob != null) {
-                    mForwardJob = null;
-                }
-                if (mQNMergeJob != null) {
-                    mQNMergeJob = null;
-                }
                 break;
             case RECONNECTED:
                 ToastUtils.showShortToast(getString(R.string.toast_reconnected));
-                if (mIsPkMode) {
-                    createMergeJob();
-                } else {
-                    createForwardJob();
+                if (mIsTranscodingStreamingStarted) {
+                    startTranscodingLiveStreaming();
+                } else if (mIsDirectStreamingStarted) {
+                    startDirectLiveStreaming();
                 }
                 break;
+            case DISCONNECTED:
+                if (info != null && info.getReason() == QNConnectionDisconnectedInfo.Reason.LEAVE) {
+                    Log.i(TAG, "已离开房间");
+                    mTranscodingLiveStreamingTracks.clear();
+                } else {
+                    ToastUtils.showShortToast(
+                            String.format(getString(R.string.toast_connection_disconnected),
+                                    info.getReason().name(), info.getErrorCode(), info.getErrorMessage()));
+                }
         }
     }
 
     @Override
-    public void onRoomLeft() {
-        Log.i(TAG, "onRoomLeft");
-        mMergeTrackOptions.clear();
-        if (mIsPkMode) {
-            joinRoom(mTargetPkRoomToken);
-        }
-        if (mReturnOriginalRoom) {
-            mReturnOriginalRoom = false;
-            mPkUserList.remove(mTargetPkRoomInfo.getCreator());
-            relayoutLocalSurfaceView(false);
-            updateBtnsSources(false);
-            rejoinSelfRoom();
-        }
+    public void onUserJoined(String remoteUserID, String userData) {
+        Log.i(TAG, "onUserJoined : " + remoteUserID);
     }
 
     @Override
-    public void onRemoteUserJoined(String remoteUserId, String userData) {
-        Log.i(TAG, "onRemoteUserJoined : " + remoteUserId);
-    }
-
-    @Override
-    public void onRemoteUserReconnecting(String remoteUserId) {
+    public void onUserReconnecting(String remoteUserID) {
         ToastUtils.showShortToast("远端用户正在重连");
     }
 
     @Override
-    public void onRemoteUserReconnected(String remoteUserId) {
+    public void onUserReconnected(String remoteUserID) {
         ToastUtils.showShortToast("远端用户已重新连接");
     }
 
     @Override
-    public void onRemoteUserLeft(String remoteUserId) {
-        Log.i(TAG, "onRemoteUserLeft : " + remoteUserId);
-        updateBtnsSources(false);
-        relayoutLocalSurfaceView(false);
+    public void onUserLeft(String remoteUserID) {
+        Log.i(TAG, "onRemoteUserLeft : " + remoteUserID);
+        ToastUtils.showShortToast("远端用户已下线，PK 结束");
+        handleEndPk();
     }
 
     @Override
-    public void onLocalPublished(List<QNTrackInfo> trackInfoList) {
-        Log.i(TAG, "onLocalPublished");
-        if (mEngine != null) {
-            mEngine.enableStatistics();
-            // 预先对本地合流布局进行配置，以应对需要 PK 的场景
-            setMergeOptions(trackInfoList, false);
-            if (mIsPkMode) {
-                if (mMergeJobId != null) {
-                    mEngine.setMergeStreamLayouts(mMergeTrackOptions, mMergeJobId);
-                    mIsLocalTracksMerged = true;
-                }
-            } else {
-                createForwardJob();
-            }
+    public void onUserPublished(String remoteUserID, List<QNRemoteTrack> trackList) {
+        Log.i(TAG, "onUserPublished : " + remoteUserID);
+    }
+
+    @Override
+    public void onUserUnpublished(String remoteUserID, List<QNRemoteTrack> trackList) {
+        Log.i(TAG, "onRemoteUnpublished : " + remoteUserID);
+    }
+
+    @Override
+    public void onSubscribed(String remoteUserID, List<QNRemoteAudioTrack> remoteAudioTracks, List<QNRemoteVideoTrack> remoteVideoTracks) {
+        Log.i(TAG, "onSubscribed : " + remoteUserID);
+        // 11. 成功订阅到远端音视频 Track，创建合流转推任务，并在创建成功后，配置合流布局
+        List<QNRemoteTrack> remoteTracks = new ArrayList<>();
+        remoteTracks.addAll(remoteAudioTracks);
+        remoteTracks.addAll(remoteVideoTracks);
+        setTranscodingLiveStreamingTracks(new ArrayList<>(remoteTracks), true); // 更新合流布局
+        startTranscodingLiveStreaming();
+
+        for (QNRemoteVideoTrack remoteVideoTrack : remoteVideoTracks) {
+            remoteVideoTrack.play(mRemoteVideoSurfaceView); // 渲染远端视频画面
         }
+        relayoutLocalSurfaceView(true);
+        updateBtnsSources(true);
     }
 
     @Override
-    public void onRemotePublished(String remoteUserId, List<QNTrackInfo> list) {
-        Log.i(TAG, "onRemotePublished : " + remoteUserId);
-        if (mEngine != null) {
-            mEngine.subscribeTracks(list);
-            mRemoteTrackList = new ArrayList<>(list);
-            setMergeOptions(list, true);
-            if (mMergeJobId != null) {
-                mEngine.setMergeStreamLayouts(mMergeTrackOptions, mMergeJobId);
-                mIsRemoteTracksMerged = true;
-            }
-        }
-    }
-
-    @Override
-    public void onRemoteUnpublished(String remoteUserId, List<QNTrackInfo> list) {
-        Log.i(TAG, "onRemoteUnpublished : " + remoteUserId);
-        if (mRemoteTrackList != null) {
-            mRemoteTrackList.removeAll(list);
-        }
-    }
-
-    @Override
-    public void onRemoteUserMuted(String remoteUserId, List<QNTrackInfo> list) {
-        Log.i(TAG, "onRemoteUserMuted : " + remoteUserId);
-    }
-
-    @Override
-    public void onSubscribed(String remoteUserId, List<QNTrackInfo> list) {
-        Log.i(TAG, "onSubscribed : " + remoteUserId);
-        for (QNTrackInfo trackInfo : list) {
-            if (trackInfo.isVideo()) {
-                mEngine.setRenderWindow(trackInfo, mRemoteVideoSurfaceView);
-            }
-        }
-        relayoutLocalSurfaceView(mIsPkMode);
-        updateBtnsSources(mIsPkMode);
-    }
-
-    @Override
-    public void onSubscribedProfileChanged(String remoteUserId, List<QNTrackInfo> list) {
+    public void onMessageReceived(QNCustomMessage message) {
 
     }
 
     @Override
-    public void onKickedOut(String userId) {
-        Log.i(TAG, "onKickedOut : " + userId);
+    public void onMediaRelayStateChanged(String relayRoom, QNMediaRelayState state) {
+        Log.i(TAG, "跨房媒体转发状态改变：" + relayRoom + " " + state.name());
     }
 
-    @Override
-    public void onStatisticsUpdated(QNStatisticsReport report) {
-        if (report.userId == null || report.userId.equals(mUserInfo.getUserId())) {
-            if (QNTrackKind.AUDIO.equals(report.trackKind)) {
-                Log.i(TAG, "\n音频码率:" + report.audioBitrate / 1000 + "kbps \n" +
-                        "音频丢包率:" + report.audioPacketLostRate);
-            } else if (QNTrackKind.VIDEO.equals(report.trackKind)) {
-                Log.i(TAG, "\n视频码率:" + report.videoBitrate / 1000 + "kbps \n" +
-                        "视频丢包率:" + report.videoPacketLostRate + " \n" +
-                        "视频的宽:" + report.width + " \n" +
-                        "视频的高:" + report.height + " \n" +
-                        "视频的帧率:" + report.frameRate);
-            }
-        }
-    }
-
-    @Override
-    public void onRemoteStatisticsUpdated(List<QNStatisticsReport> reports) {
-        for (QNStatisticsReport report : reports) {
-            int lost = report.trackKind.equals(QNTrackKind.VIDEO) ? report.videoPacketLostRate : report.audioPacketLostRate;
-            Log.i(TAG, "remote user " + report.userId
-                    + " rtt " + report.rtt
-                    + " grade " + report.networkGrade
-                    + " track " + report.trackId
-                    + " kind " + (report.trackKind.name())
-                    + " lostRate " + lost);
-        }
-    }
-
-    @Override
-    public void onAudioRouteChanged(QNAudioDevice qnAudioDevice) {
-
-    }
-
-    @Override
-    public void onCreateMergeJobSuccess(String mergeJobId) {
-        Log.i(TAG, "合流任务创建成功：" + mergeJobId + " url = " + mQNMergeJob.getPublishUrl());
-        mMergeJobId = mergeJobId;
-        // PK 请求接受方停止单路转推
-        if (!mIsPkRequester && mForwardJob != null) {
-            Log.i(TAG, "停止转推任务：" + mForwardJob.getForwardJobId());
-            mEngine.stopForwardJob(mForwardJob.getForwardJobId(), JOB_STOP_DELAY_TIME);
-            mIsForwardJobStreaming = false;
-            mForwardJob = null;
-        }
-
-        // 发布配置本地合流布局
-        if (!mIsLocalTracksMerged && mLocalTrackList != null) {
-            mEngine.setMergeStreamLayouts(mMergeTrackOptions, mMergeJobId);
-            mIsLocalTracksMerged = true;
-        }
-        // 发布配置远端合流布局
-        if (!mIsRemoteTracksMerged && mRemoteTrackList != null) {
-            mEngine.setMergeStreamLayouts(mMergeTrackOptions, mMergeJobId);
-            mIsRemoteTracksMerged = true;
-        }
-        mIsMergeJobStreaming = true;
-    }
-
-    @Override
-    public void onCreateForwardJobSuccess(String forwardJobId) {
-        ToastUtils.showShortToast("转推任务创建成功：" + forwardJobId);
-        Log.i(TAG, "转推任务创建成功：" + forwardJobId + " url = " + mForwardJob.getPublishUrl());
-        mIsForwardJobStreaming = true;
-        // PK 请求接受方停止合流转推
-        if (!mIsPkRequester && mQNMergeJob != null) {
-            Log.i(TAG, "停止合流任务：" + mMergeJobId);
-            mEngine.stopMergeStream(mMergeJobId, JOB_STOP_DELAY_TIME);
-            mIsPkMode = false;
-            mMergeJobId = null;
-            mQNMergeJob = null;
-        }
-        mIsPkRequester = false;
-    }
-
-    @Override
-    public void onError(int errorCode, String description) {
+    private final QNLiveStreamingListener mLiveStreamingListener = new QNLiveStreamingListener() {
         /**
-         * 关于错误异常的相关处理，都应在该回调中完成; 需要处理的错误码及建议处理逻辑如下:
+         * 转推任务成功创建时触发此回调
          *
-         *【TOKEN 相关】
-         * 1. QNErrorCode.ERROR_TOKEN_INVALID 和 QNErrorCode.ERROR_TOKEN_ERROR 表示您提供的房间 token 不符合七牛 token 签算规则,
-         *    详情请参考【服务端开发说明.RoomToken 签发服务】https://doc.qnsdk.com/rtn/docs/server_overview#1
-         * 2. QNErrorCode.ERROR_TOKEN_EXPIRED 表示您的房间 token 过期, 需要重新生成 token 再加入；
-         *
-         *【房间设置相关】以下情况可以与您的业务服务开发确认具体设置
-         * 1. QNErrorCode.ERROR_ROOM_FULL 当房间已加入人数超过每个房间的人数限制触发；请确认后台服务的设置；
-         * 2. QNErrorCode.ERROR_PLAYER_ALREADY_EXIST 后台如果配置为开启【禁止自动踢人】,则同一用户重复加入/未正常退出再加入会触发此错误，您的业务可根据实际情况选择配置；
-         * 3. QNErrorCode.ERROR_NO_PERMISSION 用户对于特定操作，如合流需要配置权限，禁止出现未授权的用户操作；
-         * 4. QNErrorCode.ERROR_ROOM_CLOSED 房间已被管理员关闭；
-         *
-         *【其他错误】
-         * 1. QNErrorCode.ERROR_AUTH_FAIL 服务验证时出错，可能为服务网络异常。建议重新尝试加入房间；
-         * 2. QNErrorCode.ERROR_PUBLISH_FAIL 发布失败, 会有如下3种情况:
-         * 1 ）请确认成功加入房间后，再执行发布操作
-         * 2 ）请确定对于音频/视频 Track，分别最多只能有一路为 master
-         * 3 ）请确认您的网络状况是否正常
-         * 3. QNErrorCode.ERROR_RECONNECT_TOKEN_ERROR 内部重连后出错，一般出现在网络非常不稳定时出现，建议提示用户并尝试重新加入房间；
-         * 4. QNErrorCode.ERROR_INVALID_PARAMETER 服务交互参数错误，请在开发时注意合流、踢人动作等参数的设置。
-         * 5. QNErrorCode.ERROR_DEVICE_CAMERA 系统摄像头错误, 建议提醒用户检查
+         * @param streamID 转推成功的 streamID
          */
-        switch (errorCode) {
-            case QNErrorCode.ERROR_TOKEN_INVALID:
-            case QNErrorCode.ERROR_TOKEN_ERROR:
-                ToastUtils.showShortToast("roomToken 错误，请检查后重新生成，再加入房间");
-                break;
-            case QNErrorCode.ERROR_TOKEN_EXPIRED:
-                ToastUtils.showShortToast("roomToken 过期");
-                rejoinSelfRoom();
-                break;
-            case QNErrorCode.ERROR_ROOM_FULL:
-                ToastUtils.showShortToast("房间人数已满!");
-                break;
-            case QNErrorCode.ERROR_PLAYER_ALREADY_EXIST:
-                ToastUtils.showShortToast("不允许同一用户重复加入");
-                break;
-            case QNErrorCode.ERROR_NO_PERMISSION:
-                ToastUtils.showShortToast("请检查用户权限:" + description);
-                break;
-            case QNErrorCode.ERROR_INVALID_PARAMETER:
-                ToastUtils.showShortToast("请检查参数设置:" + description);
-                break;
-            case QNErrorCode.ERROR_PUBLISH_FAIL: {
-                if (mEngine.getRoomState() != QNRoomState.CONNECTED
-                        && mEngine.getRoomState() != QNRoomState.RECONNECTED) {
-                    ToastUtils.showShortToast("发布失败，请加入房间发布: " + description);
-                    joinRoom(mRoomToken);
-                } else {
-                    ToastUtils.showShortToast("发布失败: " + description);
-                    mEngine.publishTracks(mLocalTrackList);
+        @Override
+        public void onStarted(String streamID) {
+            if (mDirectLiveStreamingConfig != null && streamID.equals(mDirectLiveStreamingConfig.getStreamID())) {
+                ToastUtils.showShortToast("转推任务创建成功：" + streamID);
+                Log.i(TAG, "转推任务创建成功：" + streamID + " url = " + mDirectLiveStreamingConfig.getUrl());
+                mIsDirectStreamingStarted = true;
+                // 如果正在合流，需停止合流转推
+                if (mIsTranscodingStreamingStarted) {
+                    Log.i(TAG, "停止合流任务：" + mTranscodingLiveStreamingConfig.getStreamID());
+                    mClient.stopLiveStreaming(mTranscodingLiveStreamingConfig);
                 }
             }
-            break;
-            case QNErrorCode.ERROR_RECONNECT_TOKEN_ERROR:
-                showReconnectFailedDialog();
-                break;
-            case QNErrorCode.ERROR_ROOM_CLOSED:
-                disconnectWithErrorMessage("房间被关闭");
-                break;
-            case QNErrorCode.ERROR_DEVICE_CAMERA:
-                ToastUtils.showShortToast("请检查摄像头权限，或者被占用");
-                break;
-            default:
-                ToastUtils.showShortToast("errorCode:" + errorCode + " description:" + description);
-                break;
+            if (mTranscodingLiveStreamingConfig != null && streamID.equals(mTranscodingLiveStreamingConfig.getStreamID())) {
+                Log.i(TAG, "合流任务创建成功：" + streamID + " url = " + mTranscodingLiveStreamingConfig.getUrl());
+                // 停止单路转推
+                if (mIsDirectStreamingStarted) {
+                    Log.i(TAG, "停止转推任务：" + mDirectLiveStreamingConfig.getStreamID());
+                    mClient.stopLiveStreaming(mDirectLiveStreamingConfig);
+                }
+                // 11. 配置合流布局
+                mClient.setTranscodingLiveStreamingTracks(streamID, mTranscodingLiveStreamingTracks);
+                mIsTranscodingStreamingStarted = true;
+            }
         }
-    }
 
-    @Override
-    public void onMessageReceived(QNCustomMessage qnCustomMessage) {
+        /**
+         * 转推任务成功停止时触发此回调
+         *
+         * @param streamID 停止转推的 streamID
+         */
+        @Override
+        public void onStopped(String streamID) {
+            if (mDirectLiveStreamingConfig != null && streamID.equals(mDirectLiveStreamingConfig.getStreamID())) {
+                mIsDirectStreamingStarted = false;
+            }
+            if (mTranscodingLiveStreamingConfig != null && streamID.equals(mTranscodingLiveStreamingConfig.getStreamID())) {
+                mIsTranscodingStreamingStarted = false;
+            }
+        }
 
-    }
+        /**
+         * 转推任务配置更新时触发此回调
+         *
+         * @param streamID 配置更新的 streamID
+         */
+        @Override
+        public void onTranscodingTracksUpdated(String streamID) {
+            Log.i(TAG, "合流布局更新成功：" + streamID);
+        }
 
-    @Override
-    public void onClientRoleChanged(QNClientRole qnClientRole) {
+        /**
+         * 转推任务出错时触发此回调
+         *  @param streamID 出现错误的 streamID
+         * @param errorInfo 详细错误原因
+         */
+        @Override
+        public void onError(String streamID, QNLiveStreamingErrorInfo errorInfo) {
+            Log.i(TAG, "CDN 转推出错：" + streamID + ", " + errorInfo);
+        }
+    };
 
-    }
-
-    @Override
-    public void onMediaRelayStateChanged(Map<String, QNMediaRelayState> map) {
-
-    }
-
-    private OnSignalClientListener mOnSignalClientListener = new OnSignalClientListener() {
+    /**
+     * 8. 通过业务逻辑完成 PK 请求的交互，此处仅作示例演示
+     */
+    private final OnSignalClientListener mOnSignalClientListener = new OnSignalClientListener() {
         @Override
         public void onPkRequestLaunched(PkRequestInfo requestInfo) {
+            // 收到远端的 PK 请求
             mPkRequesterInfo = new UserInfo(requestInfo.getUserId(), requestInfo.getNickName(), "", "");
             showPkRequestDialog(requestInfo);
         }
 
         @Override
-        public void onReplyPkSuccess() {
-            if (mIsPkAccepted) {
-                // 处理 PK 请求成功后的回调
-                // 作为 PK 请求的接受者，pkRoomId 即为自己的 roomId
-                mPkRoomId = mRoomId;
-                mPkUserList.add(mPkRequesterInfo);
-                mIsPkMode = true;
-                mIsPkRequester = false;
-                createMergeJob();
+        public void onReplyPkSuccess(String pkRoomId, String pkRoomToken) {
+            if (!mIsPkAccepted || mClient == null) {
+                mPkRequesterInfo = null;
+                return;
             }
+            mPkUserList.add(mPkRequesterInfo);
+            // 处理 PK 请求成功后的回调
+            mRemoteRoomID = pkRoomId;
             mIsPkAccepted = false;
+            mIsPkEnd = false;
+            // 开始跨房媒体转发
+            QNMediaRelayInfo srcRoomInfo = new QNMediaRelayInfo(mRoomId, mRoomToken);
+            QNMediaRelayConfiguration mediaRelayConfiguration = new QNMediaRelayConfiguration(srcRoomInfo); // 初始化并设置源房间信息
+            QNMediaRelayInfo destRelayRoomInfo = new QNMediaRelayInfo(mRemoteRoomID, pkRoomToken);
+            mediaRelayConfiguration.addDestRoomInfo(destRelayRoomInfo); // 设置目标房间信息
+            Log.i(TAG, "onReplyPkSuccess media relay : " + destRelayRoomInfo.getRoomName() + " " + destRelayRoomInfo.getRelayToken());
+            // 9. PK 请求处理方将本地音视频跨房媒体转发到对端房间
+            mClient.startMediaRelay(mediaRelayConfiguration, new QNMediaRelayResultCallback() {
+                @Override
+                public void onResult(Map<String, QNMediaRelayState> map) {
+                    if (map.containsKey(mRemoteRoomID) && map.get(mRemoteRoomID) == QNMediaRelayState.SUCCESS) {
+                        ToastUtils.showShortToast(getString(R.string.toast_start_media_relay_success));
+                    }
+                }
+
+                @Override
+                public void onError(int errorCode, String description) {
+                    Log.i(TAG, "start media relay error : " + errorCode + ", " + description);
+                }
+            });
         }
 
         @Override
@@ -1350,25 +1321,48 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         }
 
         @Override
-        public void onPkRequestHandled(boolean isAccepted, String pkRoomId, String roomToken) {
+        public void onPkRequestHandled(boolean isAccepted, String pkRoomId, String pkRoomToken) {
             if (isAccepted) {
                 // PK 请求成功被远端接受后回调处理
-                if (mEngine == null) {
+                if (mClient == null) {
                     return;
                 }
-                mTargetPkRoomToken = roomToken;
-                mPkRoomId = pkRoomId;
-                // 停止当前房间的单路转推任务
-                if (mForwardJob != null) {
-                    mEngine.stopForwardJob(mForwardJob.getForwardJobId(), JOB_STOP_DELAY_TIME);
-                    mForwardJob = null;
-                    mIsForwardJobStreaming = false;
+                for (RoomInfo roomInfo : mLiveRoomsCanPk) {
+                    if (roomInfo.getId().equals(pkRoomId)) {
+                        mTargetPkRoomInfo = roomInfo;
+                        break;
+                    }
                 }
-                // 离开当前房间，并在 onRoomLeft() 回调中加入到 PK 主播的房间
-                mEngine.leaveRoom();
-                mIsPkRequester = true;
-                mIsPkMode = true;
+                if (mTargetPkRoomInfo == null) {
+                    ToastUtils.showLongToast(getString(R.string.toast_remote_room_exception));
+                    return;
+                }
+                mPkUserList.add(mTargetPkRoomInfo.getCreator());
+                mRemoteRoomID = pkRoomId;
+                mIsPkEnd = false;
+
+                // 开始跨房媒体转发
+                QNMediaRelayInfo srcRoomInfo = new QNMediaRelayInfo(mRoomId, mRoomToken);
+                QNMediaRelayConfiguration mediaRelayConfiguration = new QNMediaRelayConfiguration(srcRoomInfo); // 初始化并设置源房间信息
+                QNMediaRelayInfo destRelayRoomInfo = new QNMediaRelayInfo(mRemoteRoomID, pkRoomToken);
+                mediaRelayConfiguration.addDestRoomInfo(destRelayRoomInfo); // 设置目标房间信息
+                Log.i(TAG, "onPkRequestHandled media relay : " + destRelayRoomInfo.getRoomName() + " " + destRelayRoomInfo.getRelayToken());
+                // 9. PK 请求发起方将本地音视频跨房媒体转发到对端房间
+                mClient.startMediaRelay(mediaRelayConfiguration, new QNMediaRelayResultCallback() {
+                    @Override
+                    public void onResult(Map<String, QNMediaRelayState> stateMap) {
+                        if (stateMap.containsKey(mRemoteRoomID) && stateMap.get(mRemoteRoomID) == QNMediaRelayState.SUCCESS) {
+                            ToastUtils.showShortToast(getString(R.string.toast_start_media_relay_success));
+                        }
+                    }
+
+                    @Override
+                    public void onError(int errorCode, String description) {
+                        Log.i(TAG, "pk requester start media relay error : " + errorCode + ", " + description);
+                    }
+                });
             } else {
+                mTargetPkRoomInfo = null;
                 showBeRefusedDialog();
             }
         }
@@ -1519,7 +1513,7 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
     }
 
     private void showBottomBtns() {
-        if (mCurrentRoomState != QNRoomState.IDLE) {
+        if (mCurrentConnectionState != QNConnectionState.DISCONNECTED) {
             setBottomBtnsVisible(View.VISIBLE);
         } else {
             mBeautyBtn.setVisibility(View.VISIBLE);
@@ -1665,12 +1659,23 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
         }
     }
 
-    private QNCaptureVideoCallback mCaptureVideoCallback = new QNCaptureVideoCallback() {
+    private final QNCameraEventListener mCameraEventListener = new QNCameraEventListener() {
+        /**
+         * 当打开采集设备时触发
+         * <p>可以用于根据返回的设备能力选择采集参数<p/>
+         *
+         * @param sizes        采集设备支持的分辨率列表
+         * @param fpsAscending 采集设备支持的帧率
+         * @return 选择的分辨率和帧率在 {@code sizes} 和 {@code fpsAscending} 中的下标
+         */
         @Override
-        public int[] onCaptureOpened(List<Size> list, List<Integer> list1) {
+        public int[] onCameraOpened(List<Size> sizes, List<Integer> fpsAscending) {
             return new int[]{-1, -1};
         }
 
+        /**
+         * 当开始采集时触发
+         */
         @Override
         public void onCaptureStarted() {
             mByteDancePlugin.init(mEffectResourcePath);
@@ -1679,30 +1684,9 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             updateProcessTypes();
         }
 
-        @Override
-        public void onRenderingFrame(VideoFrame.TextureBuffer textureBuffer, long timestampNs) {
-            if (mGLHandler == null) {
-                mGLHandler = new Handler();
-            }
-
-            if (mByteDancePlugin.isUsingEffect()) {
-                boolean isOES = textureBuffer.getType() == VideoFrame.TextureBuffer.Type.OES;
-                int newTexture = mByteDancePlugin.drawFrame(textureBuffer.getTextureId(), textureBuffer.getWidth(), textureBuffer.getHeight(), timestampNs, mProcessTypes, isOES);
-                if (newTexture != textureBuffer.getTextureId()) {
-                    textureBuffer.setType(VideoFrame.TextureBuffer.Type.RGB);
-                    textureBuffer.setTextureId(newTexture);
-                }
-            }
-        }
-
-        @Override
-        public void onPreviewFrame(byte[] data, int width, int height, int rotation, int fmt, long timestampNs) {
-            if (mTextureRotation != rotation) {
-                mTextureRotation = rotation;
-                updateProcessTypes();
-            }
-        }
-
+        /**
+         * 当采集停止时触发
+         */
         @Override
         public void onCaptureStopped() {
             //停止连麦或者切到后台时候会调用
@@ -1710,6 +1694,64 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
             mTextureRotation = 0;
             mIsFrontCamera = true;
             captureStoppedSem.release();
+        }
+
+        /**
+         * 当 Camera 错误发生时触发此回调
+         *
+         * @param errorCode   错误码
+         * @param description 错误原因
+         */
+        @Override
+        public void onError(int errorCode, String description) {
+
+        }
+    };
+
+    private final QNVideoFrameListener mVideoFrameListener = new QNVideoFrameListener() {
+        /**
+         * YUV 视频数据回调
+         *
+         * @param data                  视频数据
+         * @param type                  数据类型
+         * @param width                 宽
+         * @param height                高
+         * @param rotation              旋转角度
+         * @param timestampNs           时间戳
+         */
+        @Override
+        public void onYUVFrameAvailable(byte[] data, QNVideoFrameType type, int width, int height, int rotation, long timestampNs) {
+            if (mTextureRotation != rotation) {
+                mTextureRotation = rotation;
+                updateProcessTypes();
+            }
+        }
+
+        /**
+         * 纹理视频数据回调，只有 QNCameraVideoTrack 的回调才会触发此方法
+         *
+         * @param textureID             纹理 ID
+         * @param type                  数据类型
+         * @param width                 宽
+         * @param height                高
+         * @param rotation              旋转角度
+         * @param timestampNs           时间戳
+         * @param transformMatrix       纹理变换矩阵
+         *
+         * @return int textureID
+         */
+        @Override
+        public int onTextureFrameAvailable(int textureID, QNVideoFrameType type, int width, int height, int rotation, long timestampNs, float[] transformMatrix) {
+            if (mGLHandler == null) {
+                mGLHandler = new Handler();
+            }
+
+            if (mByteDancePlugin.isUsingEffect()) {
+                return mByteDancePlugin.drawFrame(
+                        textureID, width, height, timestampNs, mProcessTypes,
+                        type == QNVideoFrameType.TEXTURE_OES);
+            }
+            return textureID;
         }
     };
 
@@ -1874,12 +1916,12 @@ public class LiveRoomActivity extends AppCompatActivity implements QNRTCEngineEv
 
     private void streamerSwitchToBackstage() {
         QNImage image = new QNImage(getApplicationContext());
-        image.setResourceId(R.drawable.pause_publish);
-        mEngine.pushCameraTrackWithImage(image);
+        image.setResourceID(R.drawable.pause_publish);
+        mCameraVideoTrack.pushImage(image);
     }
 
     private void streamerBackToLiving() {
-        mEngine.pushCameraTrackWithImage(null);
+        mCameraVideoTrack.pushImage(null);
     }
 
     private void quitChatRoom() {

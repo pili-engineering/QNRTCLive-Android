@@ -7,6 +7,8 @@ public class Constants {
     public static final String KEY_ROOM_ID = "roomID";
     public static final String KEY_ROOM_NAME = "roomName";
     public static final String KEY_ROOM_TOKEN = "rtcRoomToken";
+    public static final String KEY_RELAY_ROOM = "relayRtcRoom";
+    public static final String KEY_RELAY_ROOM_TOKEN = "relayRtcRoomToken";
     public static final String KEY_WS_URL = "wsURL";
     public static final String KEY_ROOMS = "rooms";
     public static final String KEY_JOINED_AUDIENCES = "joinedAudiences";

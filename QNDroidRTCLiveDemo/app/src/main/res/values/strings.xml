@@ -81,6 +81,10 @@
     <string name="toast_reconnecting">正在重连中。。。</string>
     <string name="toast_reconnected">重连成功!</string>
     <string name="toast_no_such_room">当前直播已结束！</string>
+    <string name="toast_connection_disconnected">房间连接失败:[%1$s, %2$d, %3$s]</string>
+    <string name="toast_start_media_relay_success">跨房媒体转发成功</string>
+    <string name="toast_remote_room_exception">房间状态异常，请退出当前直播并重试</string>
+    <string name="toast_rtc_life_circle_exception">RTC 未释放完成，当前页面不可用，请重新开启直播！</string>
 
     <string name="hint_modify_nick_name">请输入昵称</string>
     <string name="hint_modify_room_name">请输入房间名称</string>

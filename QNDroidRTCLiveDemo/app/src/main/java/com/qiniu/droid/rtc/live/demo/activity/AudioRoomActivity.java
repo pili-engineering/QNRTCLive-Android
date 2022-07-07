@@ -29,16 +29,21 @@ import com.bumptech.glide.Glide;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.gson.Gson;
 import com.orzangleli.xdanmuku.DanmuContainerView;
-import com.qiniu.droid.rtc.QNClientRole;
+import com.qiniu.droid.rtc.QNClientEventListener;
+import com.qiniu.droid.rtc.QNConnectionDisconnectedInfo;
+import com.qiniu.droid.rtc.QNConnectionState;
 import com.qiniu.droid.rtc.QNCustomMessage;
-import com.qiniu.droid.rtc.QNErrorCode;
 import com.qiniu.droid.rtc.QNMediaRelayState;
-import com.qiniu.droid.rtc.QNRTCEngine;
-import com.qiniu.droid.rtc.QNRTCEngineEventListener;
-import com.qiniu.droid.rtc.QNRTCSetting;
-import com.qiniu.droid.rtc.QNRoomState;
-import com.qiniu.droid.rtc.QNStatisticsReport;
-import com.qiniu.droid.rtc.QNTrackInfo;
+import com.qiniu.droid.rtc.QNMicrophoneAudioTrack;
+import com.qiniu.droid.rtc.QNPublishResultCallback;
+import com.qiniu.droid.rtc.QNRTC;
+import com.qiniu.droid.rtc.QNRTCClient;
+import com.qiniu.droid.rtc.QNRTCEventListener;
+import com.qiniu.droid.rtc.QNRemoteAudioTrack;
+import com.qiniu.droid.rtc.QNRemoteTrack;
+import com.qiniu.droid.rtc.QNRemoteVideoTrack;
+import com.qiniu.droid.rtc.QNTrack;
+import com.qiniu.droid.rtc.QNTrackInfoChangedListener;
 import com.qiniu.droid.rtc.live.demo.R;
 import com.qiniu.droid.rtc.live.demo.adapter.AudienceParticipantsAdapter;
 import com.qiniu.droid.rtc.live.demo.fragment.AudioParticipantsFragment;
@@ -86,7 +91,6 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -105,7 +109,21 @@ import io.rong.message.TextMessage;
 
 import static com.qiniu.droid.rtc.live.demo.signal.QNSignalErrorCode.POSITION_OCCUPIED;
 
-public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineEventListener,
+/**
+ * 语聊房实现方式
+ *
+ * 主要步骤如下：
+ * 1. 初始化视图
+ * 2. 初始化 RTC
+ * 3. 创建 QNRTCClient 对象
+ * 4. 创建本地麦克风音频采集 Track
+ * 5. 加入房间
+ * 6. 发布本地麦克风音频 Track
+ * 7. 订阅远端音频 Track（sdk 默认自动订阅远端 Track）
+ * 8. 离开房间
+ * 9. 反初始化 RTC 释放资源
+ */
+public class AudioRoomActivity extends AppCompatActivity implements QNRTCEventListener, QNClientEventListener,
         AudienceParticipantsAdapter.OnItemClickListener, Handler.Callback {
     private static final String TAG = "AudioRoomActivity";
 
@@ -143,14 +161,17 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
 
     private Toast mAudienceNumberToast;
 
-    private QNRTCEngine mEngine;
+    // 标记 RTC 的生命周期，确保 init/deinit 成对出现并执行
+    static boolean mRTCInit = false;
+    private QNRTCClient mClient;
+    private QNMicrophoneAudioTrack mMicrophoneAudioTrack;
 
     private AudioParticipant mAnchorInfo;
     private AudioParticipant mSelfInfo;
     private RoomInfo mRoomInfo;
     private String mRoomToken;
 
-    private QNRoomState mCurrentRoomState = QNRoomState.IDLE;
+    private QNConnectionState mCurrentConnectionState = QNConnectionState.DISCONNECTED;
 
     private Handler mMainHandler;
     private Handler mSubThreadHandler;
@@ -175,6 +196,10 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_audio_room);
 
+        if (mRTCInit) {
+            showLifeCircleExceptionDialog();
+        }
+
         mMainHandler = new Handler();
         HandlerThread handlerThread = new HandlerThread(TAG);
         handlerThread.start();
@@ -182,10 +207,12 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
 
         // 初始化相关数据
         initData();
-        // 初始化视图
+        // 1. 初始化视图
         initViews();
         // 初始化连麦引擎
-        initQNRTCEngine();
+        initQNRTC();
+        // 4. 创建本地麦克风音频采集 Track
+        mMicrophoneAudioTrack = QNRTC.createMicrophoneAudioTrack();
         // 初始化 IM 控件
         initChatView();
 
@@ -233,8 +260,16 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
         }
 
         quitChatRoom();
-        mEngine.leaveRoom();
-        mEngine.destroy();
+        // 8. 离开房间
+        if (mClient != null) {
+            mClient.leave();
+        }
+        // 9. 反初始化 RTC 释放资源
+        if (mRTCInit) {
+            QNRTC.deinit();
+            mRTCInit = false;
+        }
+        mClient = null;
     }
 
     public void onClickStartCommunication(View v) {
@@ -252,31 +287,27 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
     }
 
     public void onClickMuteMicrophone(View v) {
-        if (mEngine != null) {
-            mIsLocalAudioMute = !mIsLocalAudioMute;
-            mEngine.muteLocalAudio(mIsLocalAudioMute);
+        mIsLocalAudioMute = !mIsLocalAudioMute;
+        mMicrophoneAudioTrack.setMuted(mIsLocalAudioMute);
 
-            if (mIsCommunicateAudience) {
-                mSelfInfo.setMute(mIsLocalAudioMute);
-                updateAudienceMuteStatus(mSelfInfo.getPosition(), mIsLocalAudioMute);
-            }
-            if (mIsAudioAnchor) {
-                mAnchorInfo.setMute(mIsLocalAudioMute);
-                mAnchorAudioStatusIv.setImageResource(mIsLocalAudioMute ? R.drawable.ic_voice_off : R.drawable.ic_voice_on);
-            }
-            mMicrophoneMuteBtn.setImageResource(mIsLocalAudioMute ? R.drawable.ic_microphone_mute : R.drawable.ic_microphone_on);
-            if (mAudioParticipantsFragment != null) {
-                mAudioParticipantsFragment.notifyDataSetChanged();
-            }
+        if (mIsCommunicateAudience) {
+            mSelfInfo.setMute(mIsLocalAudioMute);
+            updateAudienceMuteStatus(mSelfInfo.getPosition(), mIsLocalAudioMute);
+        }
+        if (mIsAudioAnchor) {
+            mAnchorInfo.setMute(mIsLocalAudioMute);
+            mAnchorAudioStatusIv.setImageResource(mIsLocalAudioMute ? R.drawable.ic_voice_off : R.drawable.ic_voice_on);
+        }
+        mMicrophoneMuteBtn.setImageResource(mIsLocalAudioMute ? R.drawable.ic_microphone_mute : R.drawable.ic_microphone_on);
+        if (mAudioParticipantsFragment != null) {
+            mAudioParticipantsFragment.notifyDataSetChanged();
         }
     }
 
     public void onClickMuteSpeaker(View v) {
-        if (mEngine != null) {
-            mIsSpeakerMute = !mIsSpeakerMute;
-            mEngine.muteRemoteAudio(mIsSpeakerMute);
-            mSpeakerMuteBtn.setImageResource(mIsSpeakerMute ? R.drawable.ic_speaker_mute : R.drawable.ic_speaker_on);
-        }
+        mIsSpeakerMute = !mIsSpeakerMute;
+        QNRTC.setSpeakerphoneMuted(mIsSpeakerMute);
+        mSpeakerMuteBtn.setImageResource(mIsSpeakerMute ? R.drawable.ic_speaker_mute : R.drawable.ic_speaker_on);
     }
 
     public void onClickModifyRoomName(View v) {
@@ -413,9 +444,12 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
         mModifiedRoomNameText.setText(String.format(getString(R.string.room_nick_name_edit_text), mAnchorInfo.getUserInfo().getNickName()));
     }
 
-    private void initQNRTCEngine() {
-        QNRTCSetting setting = new QNRTCSetting();
-        mEngine = QNRTCEngine.createEngine(getApplicationContext(), setting, this);
+    private void initQNRTC() {
+        // 2. 初始化 RTC
+        QNRTC.init(getApplicationContext(), this);
+        // 3. 创建 QNRTCClient 对象
+        mClient = QNRTC.createClient(this);
+        mRTCInit = true;
     }
 
     private void startCommunication() {
@@ -511,9 +545,22 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
     }
 
     private void joinRoom(String roomToken) {
-        if (mEngine != null) {
-            mEngine.joinRoom(roomToken);
+        if (mClient != null) {
+            // 5. 加入房间
+            mClient.join(roomToken);
         }
+    }
+
+    private void showLifeCircleExceptionDialog() {
+        new AlertDialog.Builder(this)
+                .setMessage(R.string.toast_rtc_life_circle_exception)
+                .setCancelable(false)
+                .setPositiveButton("OK", (dialog, which) -> {
+                    dialog.cancel();
+                    finish();
+                })
+                .create()
+                .show();
     }
 
     private void showRequestJoinDialog(int pos) {
@@ -615,8 +662,8 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
                 if (mSignalClient != null) {
                     mSignalClient.endJoin(mRoomInfo.getId(), mSelfInfo.getUserInfo().getUserId());
                 }
-                if (mEngine != null) {
-                    mEngine.unPublishAudio();
+                if (mClient != null) {
+                    mClient.unpublish(mMicrophoneAudioTrack);
                 }
                 mIsCommunicateAudience = false;
                 setBottomBtnsVisibility(View.VISIBLE);
@@ -685,19 +732,21 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
 
     private void audioParticipantChanged(AudioParticipant participant, boolean isJoin) {
         mCommunicateAudiences.set(participant.getPosition(), isJoin ? participant : null);
-        mParticipantsAdapter.notifyItemChanged(participant.getPosition());
-        if (isJoin) {
-            mAudioParticipants.add(participant);
-            if (mAudioParticipantsFragment != null) {
-                mAudioParticipantsFragment.notifyItemInserted(mAudioParticipants.size() - 1);
+        mMainHandler.post(() -> {
+            mParticipantsAdapter.notifyItemChanged(participant.getPosition());
+            if (isJoin) {
+                mAudioParticipants.add(participant);
+                if (mAudioParticipantsFragment != null) {
+                    mAudioParticipantsFragment.notifyItemInserted(mAudioParticipants.size() - 1);
+                }
+            } else {
+                int index = mAudioParticipants.indexOf(participant);
+                mAudioParticipants.remove(participant);
+                if (mAudioParticipantsFragment != null) {
+                    mAudioParticipantsFragment.notifyItemRemoved(index);
+                }
             }
-        } else {
-            int index = mAudioParticipants.indexOf(participant);
-            mAudioParticipants.remove(participant);
-            if (mAudioParticipantsFragment != null) {
-                mAudioParticipantsFragment.notifyItemRemoved(index);
-            }
-        }
+        });
     }
 
     private void setBottomBtnsVisibility(int visibility) {
@@ -724,7 +773,7 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
         }
         mRoomNameText.setText(mIsAudioAnchor ? mModifiedRoomNameText.getText() : mRoomInfo.getName());
         mTopBtns.setVisibility(View.VISIBLE);
-        mUserNumberText.setText(String.valueOf(mEngine.getUserList().size() - 1));
+        mUserNumberText.setText(String.valueOf(mClient.getRemoteUsers().size()));
         setBottomBtnsVisibility(View.VISIBLE);
     }
 
@@ -736,12 +785,12 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
         }
     }
 
-    private void userTrackInfoUpdated(String userId, List<QNTrackInfo> trackInfoList) {
+    private void userTrackInfoUpdated(String userId, List<QNTrack> trackList) {
         if (userId.equals(mAnchorInfo.getUserInfo().getUserId())) {
-            for (QNTrackInfo info : trackInfoList) {
-                if (info.isAudio()) {
-                    mAnchorAudioStatusIv.setImageResource(info.isMuted() ? R.drawable.ic_voice_off : R.drawable.ic_voice_on);
-                    mAnchorInfo.setMute(info.isMuted());
+            for (QNTrack track : trackList) {
+                if (track.isAudio()) {
+                    mAnchorAudioStatusIv.setImageResource(track.isMuted() ? R.drawable.ic_voice_off : R.drawable.ic_voice_on);
+                    mAnchorInfo.setMute(track.isMuted());
                 }
             }
             return;
@@ -752,10 +801,10 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
                 continue;
             }
             if (userId.equals(participant.getUserInfo().getUserId())) {
-                for (QNTrackInfo info : trackInfoList) {
-                    if (info.isAudio()) {
-                        participant.setMute(info.isMuted());
-                        updateAudienceMuteStatus(participant.getPosition(), info.isMuted());
+                for (QNTrack track : trackList) {
+                    if (track.isAudio()) {
+                        participant.setMute(track.isMuted());
+                        updateAudienceMuteStatus(participant.getPosition(), track.isMuted());
                     }
                 }
             }
@@ -778,7 +827,7 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
         }
 
         @Override
-        public void onReplyPkSuccess() {
+        public void onReplyPkSuccess(String pkRoomId, String pkRoomToken) {
 
         }
 
@@ -788,7 +837,7 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
         }
 
         @Override
-        public void onPkRequestHandled(boolean isAccepted, String pkRoomId, String roomToken) {
+        public void onPkRequestHandled(boolean isAccepted, String pkRoomId, String pkRoomToken) {
 
         }
 
@@ -815,14 +864,24 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
         @Override
         public void onJoinRequestHandled(String reqUserId, String roomId, boolean isAccepted, int position) {
             if (isAccepted) {
-                mEngine.publishAudio();
-                mIsCommunicateAudience = true;
-                mSelfInfo.setPosition(position);
-                audioParticipantChanged(mSelfInfo, true);
-                if (mAudioParticipantsFragment != null) {
-                    mAudioParticipantsFragment.setEndBtnVisible(true);
-                }
-                setBottomBtnsVisibility(View.VISIBLE);
+                // 6. 观众在上麦后发布本地麦克风音频 Track
+                mClient.publish(new QNPublishResultCallback() {
+                    @Override
+                    public void onPublished() {
+                        mIsCommunicateAudience = true;
+                        mSelfInfo.setPosition(position);
+                        audioParticipantChanged(mSelfInfo, true);
+                        if (mAudioParticipantsFragment != null) {
+                            mAudioParticipantsFragment.setEndBtnVisible(true);
+                        }
+                        mMainHandler.post(() -> setBottomBtnsVisibility(View.VISIBLE));
+                    }
+
+                    @Override
+                    public void onError(int errorCode, String errorMessage) {
+
+                    }
+                }, mMicrophoneAudioTrack);
             } else {
                 showBeRefusedDialog();
             }
@@ -875,7 +934,7 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
             mChatBottomPanel.hidePanels();
             return;
         }
-        if (mIsAudioAnchor && mCurrentRoomState != QNRoomState.CONNECTED) {
+        if (mIsAudioAnchor && mCurrentConnectionState != QNConnectionState.DISCONNECTED) {
             ToastUtils.showShortToast(getString(R.string.toast_join_room));
             return;
         }
@@ -894,26 +953,41 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
     }
 
     @Override
-    public void onRoomStateChanged(QNRoomState qnRoomState) {
-        Log.i(TAG, "onRoomStateChanged : " + qnRoomState.name());
-        mCurrentRoomState = qnRoomState;
-        switch (qnRoomState) {
+    public void onAudioRouteChanged(QNAudioDevice routing) {
+
+    }
+
+    @Override
+    public void onConnectionStateChanged(QNConnectionState state, @Nullable QNConnectionDisconnectedInfo info) {
+        Log.i(TAG, "onConnectionStateChanged : " + state.name());
+        mCurrentConnectionState = state;
+        switch (state) {
             case CONNECTED:
                 if (mLoadingDialog != null && mLoadingDialog.isShowing()) {
                     mLoadingDialog.dismiss();
                 }
                 if (mIsAudioAnchor || mIsCommunicateAudience) {
-                    mEngine.publishAudio();
-                    if (mIsCommunicateAudience) {
-                        if (mSelfInfo.isMute()) {
-                            mEngine.muteLocalAudio(mIsLocalAudioMute);
-                            mMicrophoneMuteBtn.setImageResource(mIsLocalAudioMute ? R.drawable.ic_microphone_mute : R.drawable.ic_microphone_on);
+                    // 6. 主播发布本地麦克风音频 Track
+                    mClient.publish(new QNPublishResultCallback() {
+                        @Override
+                        public void onPublished() {
+                            if (mIsCommunicateAudience) {
+                                if (mSelfInfo.isMute()) {
+                                    mMicrophoneAudioTrack.setMuted(mIsLocalAudioMute);
+                                    mMicrophoneMuteBtn.setImageResource(mIsLocalAudioMute ? R.drawable.ic_microphone_mute : R.drawable.ic_microphone_on);
+                                }
+                                if (mAudioParticipantsFragment != null) {
+                                    mAudioParticipantsFragment.setEndBtnVisible(true);
+                                }
+                                setBottomBtnsVisibility(View.VISIBLE);
+                            }
                         }
-                        if (mAudioParticipantsFragment != null) {
-                            mAudioParticipantsFragment.setEndBtnVisible(true);
+
+                        @Override
+                        public void onError(int errorCode, String errorMessage) {
+
                         }
-                        setBottomBtnsVisibility(View.VISIBLE);
-                    }
+                    }, mMicrophoneAudioTrack);
                 }
                 updateUIAfterConnected();
                 ToastUtils.showShortToast(mSelfInfo.getUserInfo().getUserId() + " 成功加入房间！");
@@ -928,18 +1002,13 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
     }
 
     @Override
-    public void onRoomLeft() {
-
+    public void onUserJoined(String remoteUserID, String userData) {
+        mUserNumberText.setText(String.valueOf(mClient.getRemoteUsers().size()));
     }
 
     @Override
-    public void onRemoteUserJoined(String remoteUserId, String userData) {
-        mUserNumberText.setText(String.valueOf(mEngine.getUserList().size() - 1));
-    }
-
-    @Override
-    public void onRemoteUserReconnecting(String remoteUserId) {
-        String nickName = findNickNameById(remoteUserId);
+    public void onUserReconnecting(String remoteUserID) {
+        String nickName = findNickNameById(remoteUserID);
         if (nickName != null) {
             ToastUtils.showShortToast(
                     String.format(getString(R.string.toast_remote_user_reconnecting), nickName));
@@ -947,8 +1016,8 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
     }
 
     @Override
-    public void onRemoteUserReconnected(String remoteUserId) {
-        String nickName = findNickNameById(remoteUserId);
+    public void onUserReconnected(String remoteUserID) {
+        String nickName = findNickNameById(remoteUserID);
         if (nickName != null) {
             ToastUtils.showShortToast(
                     String.format(getString(R.string.toast_remote_user_reconnected), nickName));
@@ -956,139 +1025,33 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
     }
 
     @Override
-    public void onRemoteUserLeft(String remoteUserId) {
-        mUserNumberText.setText(String.valueOf(mEngine.getUserList().size() - 1));
+    public void onUserLeft(String remoteUserID) {
+        mUserNumberText.setText(String.valueOf(mClient.getRemoteUsers().size()));
     }
 
     @Override
-    public void onLocalPublished(List<QNTrackInfo> trackInfoList) {
-
-    }
-
-    @Override
-    public void onRemotePublished(String remoteUserId, List<QNTrackInfo> trackInfoList) {
+    public void onUserPublished(String remoteUserID, List<QNRemoteTrack> trackList) {
 
     }
 
     @Override
-    public void onRemoteUnpublished(String remoteUserId, List<QNTrackInfo> trackInfoList) {
+    public void onUserUnpublished(String remoteUserID, List<QNRemoteTrack> trackList) {
 
     }
 
     @Override
-    public void onRemoteUserMuted(String remoteUserId, List<QNTrackInfo> trackInfoList) {
-        userTrackInfoUpdated(remoteUserId, trackInfoList);
-    }
-
-    @Override
-    public void onSubscribed(String remoteUserId, List<QNTrackInfo> trackInfoList) {
-        userTrackInfoUpdated(remoteUserId, trackInfoList);
-    }
-
-    @Override
-    public void onSubscribedProfileChanged(String remoteUserId, List<QNTrackInfo> trackInfoList) {
-
-    }
-
-    @Override
-    public void onKickedOut(String userId) {
-
-    }
-
-    @Override
-    public void onStatisticsUpdated(QNStatisticsReport report) {
-
-    }
-
-    @Override
-    public void onRemoteStatisticsUpdated(List<QNStatisticsReport> reports) {
-
-    }
-
-    @Override
-    public void onAudioRouteChanged(QNAudioDevice routing) {
-
-    }
-
-    @Override
-    public void onCreateMergeJobSuccess(String mergeJobId) {
-
-    }
-
-    @Override
-    public void onCreateForwardJobSuccess(String forwardJobId) {
-
-    }
-
-    @Override
-    public void onError(int errorCode, String description) {
-        /**
-         * 关于错误异常的相关处理，都应在该回调中完成; 需要处理的错误码及建议处理逻辑如下:
-         *
-         *【TOKEN 相关】
-         * 1. QNErrorCode.ERROR_TOKEN_INVALID 和 QNErrorCode.ERROR_TOKEN_ERROR 表示您提供的房间 token 不符合七牛 token 签算规则,
-         *    详情请参考【服务端开发说明.RoomToken 签发服务】https://doc.qnsdk.com/rtn/docs/server_overview#1
-         * 2. QNErrorCode.ERROR_TOKEN_EXPIRED 表示您的房间 token 过期, 需要重新生成 token 再加入；
-         *
-         *【房间设置相关】以下情况可以与您的业务服务开发确认具体设置
-         * 1. QNErrorCode.ERROR_ROOM_FULL 当房间已加入人数超过每个房间的人数限制触发；请确认后台服务的设置；
-         * 2. QNErrorCode.ERROR_PLAYER_ALREADY_EXIST 后台如果配置为开启【禁止自动踢人】,则同一用户重复加入/未正常退出再加入会触发此错误，您的业务可根据实际情况选择配置；
-         * 3. QNErrorCode.ERROR_NO_PERMISSION 用户对于特定操作，如合流需要配置权限，禁止出现未授权的用户操作；
-         * 4. QNErrorCode.ERROR_ROOM_CLOSED 房间已被管理员关闭；
-         *
-         *【其他错误】
-         * 1. QNErrorCode.ERROR_AUTH_FAIL 服务验证时出错，可能为服务网络异常。建议重新尝试加入房间；
-         * 2. QNErrorCode.ERROR_PUBLISH_FAIL 发布失败, 会有如下3种情况:
-         * 1 ）请确认成功加入房间后，再执行发布操作
-         * 2 ）请确定对于音频/视频 Track，分别最多只能有一路为 master
-         * 3 ）请确认您的网络状况是否正常
-         * 3. QNErrorCode.ERROR_RECONNECT_TOKEN_ERROR 内部重连后出错，一般出现在网络非常不稳定时出现，建议提示用户并尝试重新加入房间；
-         * 4. QNErrorCode.ERROR_INVALID_PARAMETER 服务交互参数错误，请在开发时注意合流、踢人动作等参数的设置。
-         * 5. QNErrorCode.ERROR_DEVICE_CAMERA 系统摄像头错误, 建议提醒用户检查
-         */
-        switch (errorCode) {
-            case QNErrorCode.ERROR_TOKEN_INVALID:
-            case QNErrorCode.ERROR_TOKEN_ERROR:
-                ToastUtils.showShortToast("roomToken 错误，请检查后重新生成，再加入房间");
-                break;
-            case QNErrorCode.ERROR_TOKEN_EXPIRED:
-                disconnectWithErrorMessage("roomToken 过期");
-                break;
-            case QNErrorCode.ERROR_ROOM_FULL:
-                ToastUtils.showShortToast("房间人数已满!");
-                break;
-            case QNErrorCode.ERROR_PLAYER_ALREADY_EXIST:
-                ToastUtils.showShortToast("不允许同一用户重复加入");
-                break;
-            case QNErrorCode.ERROR_NO_PERMISSION:
-                ToastUtils.showShortToast("请检查用户权限:" + description);
-                break;
-            case QNErrorCode.ERROR_INVALID_PARAMETER:
-                ToastUtils.showShortToast("请检查参数设置:" + description);
-                break;
-            case QNErrorCode.ERROR_PUBLISH_FAIL: {
-                if (mEngine.getRoomState() != QNRoomState.CONNECTED
-                        && mEngine.getRoomState() != QNRoomState.RECONNECTED) {
-                    ToastUtils.showShortToast("发布失败，请加入房间发布: " + description);
-                    joinRoom(mRoomToken);
-                } else {
-                    ToastUtils.showShortToast("发布失败: " + description);
+    public void onSubscribed(String remoteUserID, List<QNRemoteAudioTrack> remoteAudioTracks, List<QNRemoteVideoTrack> remoteVideoTracks) {
+        for (QNRemoteAudioTrack remoteAudioTrack : remoteAudioTracks) {
+            remoteAudioTrack.setTrackInfoChangedListener(new QNTrackInfoChangedListener() {
+                @Override
+                public void onMuteStateChanged(boolean isMuted) {
+                    ArrayList<QNTrack> muteTracks = new ArrayList<>(1);
+                    muteTracks.add(remoteAudioTrack);
+                    userTrackInfoUpdated(remoteUserID, muteTracks);
                 }
-            }
-            break;
-            case QNErrorCode.ERROR_RECONNECT_TOKEN_ERROR:
-                disconnectWithErrorMessage(getString(R.string.tips_reconnect_failed));
-                break;
-            case QNErrorCode.ERROR_ROOM_CLOSED:
-                disconnectWithErrorMessage("房间被关闭");
-                break;
-            case QNErrorCode.ERROR_DEVICE_CAMERA:
-                ToastUtils.showShortToast("请检查摄像头权限，或者被占用");
-                break;
-            default:
-                ToastUtils.showShortToast("errorCode:" + errorCode + " description:" + description);
-                break;
+            });
         }
+        userTrackInfoUpdated(remoteUserID, new ArrayList<>(remoteAudioTracks));
     }
 
     @Override
@@ -1097,12 +1060,7 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
     }
 
     @Override
-    public void onClientRoleChanged(QNClientRole qnClientRole) {
-
-    }
-
-    @Override
-    public void onMediaRelayStateChanged(Map<String, QNMediaRelayState> map) {
+    public void onMediaRelayStateChanged(String relayRoom, QNMediaRelayState state) {
 
     }
 
@@ -1219,7 +1177,7 @@ public class AudioRoomActivity extends AppCompatActivity implements QNRTCEngineE
             public boolean onTouch(View view, MotionEvent event) {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        if (mCurrentRoomState == QNRoomState.IDLE) {
+                        if (mCurrentConnectionState == QNConnectionState.DISCONNECTED) {
                             return false;
                         }
                         if (mChatBottomPanel.isSelectingEmoji() || mChatBottomPanel.isGiftViewVisible()) {
