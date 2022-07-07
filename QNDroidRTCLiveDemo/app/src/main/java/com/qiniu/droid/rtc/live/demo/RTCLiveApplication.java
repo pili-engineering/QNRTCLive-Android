@@ -3,9 +3,7 @@ package com.qiniu.droid.rtc.live.demo;
 import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
-import android.util.Log;
 
-import com.qiniu.droid.rtc.QNRTCEnv;
 import com.qiniu.droid.rtc.live.demo.activity.LoginActivity;
 import com.qiniu.droid.rtc.live.demo.common.MessageEvent;
 import com.qiniu.droid.rtc.live.demo.im.ChatroomKit;
@@ -24,14 +22,6 @@ public class RTCLiveApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        /*
-          init must be called before any other func
-         */
-
-        QNRTCEnv.init(getApplicationContext());
-        QNRTCEnv.setDnsManager(Utils.getDefaultDnsManager(getApplicationContext()));
-        QNRTCEnv.setLogFileEnabled(true);
-
         DataInterface.init(this);
         ChatroomKit.init(this, DataInterface.APP_KEY);
         AppUtils.init(this);

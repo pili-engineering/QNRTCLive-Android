@@ -53,24 +53,28 @@ public class QNAppServer {
         return QNAppServerHolder.instance;
     }
 
+    private String getServerAddress() {
+        return LIVE_SERVER_ADDR;
+    }
+
     public void setToken(String token) {
         mAuthToken = token;
         mAuthorization = "Bearer " + token;
     }
 
     public void sendSmsCode(String phoneNumber, OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/send_sms_code?phone_number=" + phoneNumber;
+        String url = getServerAddress() + "/v1/send_sms_code?phone_number=" + phoneNumber;
         doPostRequest(url, null, null, callback);
     }
 
     public void login(String phoneNumber, String smsCode, OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/login?logintype=smscode";
+        String url = getServerAddress() + "/v1/login?logintype=smscode";
         String requestBody = "{\"phoneNumber\":\"" + phoneNumber + "\",\"smsCode\":\"" + smsCode + "\"}";
         doPostRequest(url, requestBody, null, callback);
     }
 
     public void logout(OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/logout";
+        String url = getServerAddress() + "/v1/logout";
         doPostRequest(url, null, mAuthorization, callback);
     }
 
@@ -79,7 +83,7 @@ public class QNAppServer {
     }
 
     public void updateProfile(UserInfo userInfo, OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/profile";
+        String url = getServerAddress() + "/v1/profile";
         String requestBody = "{\"id\":\"" + userInfo.getUserId()
                 + "\",\"nickname\":\"" + userInfo.getNickName()
                 + "\",\"gender\":\"" + userInfo.getGender() + "\"}";
@@ -87,62 +91,62 @@ public class QNAppServer {
     }
 
     public void getLivingRooms(OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/rooms";
+        String url = getServerAddress() + "/v1/rooms";
         doGetRequest(url, mAuthorization, callback);
     }
 
     public void getChatToken(OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/im_user_token";
+        String url = getServerAddress() + "/v1/im_user_token";
         doPostRequest(url, "", mAuthorization, callback);
     }
 
 
     public void enterRoom(String userId, String roomId, OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/enter_room";
+        String url = getServerAddress() + "/v1/enter_room";
         String requestBody = "{\"userID\":\"" + userId + "\",\"roomID\":\"" + roomId + "\"}";
         doPostRequest(url, requestBody, mAuthorization, callback);
     }
 
     public void leaveRoom(String userId, String roomId, OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/leave_room";
+        String url = getServerAddress() + "/v1/leave_room";
         String requestBody = "{\"userID\":\"" + userId + "\",\"roomID\":\"" + roomId + "\"}";
         doPostRequest(url, requestBody, mAuthorization, callback); }
 
     public void createRoom(String userId, String roomName, String roomType, OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/rooms";
+        String url = getServerAddress() + "/v1/rooms";
         String requestBody = "{\"userID\":\"" + userId + "\",\"roomName\":\"" + roomName + "\",\"roomType\":\"" + roomType + "\"}";
         doPostRequest(url, requestBody, mAuthorization, callback);
     }
 
     public void updateRoomName(String roomId, String roomName, OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/rooms/" + roomId;
+        String url = getServerAddress() + "/v1/rooms/" + roomId;
         String requestBody = "{\"roomName\":\"" + roomName + "\"}";
         doPutRequest(url, requestBody, mAuthorization, callback);
     }
 
     public void getRoomInfo(String roomId, OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/rooms/" + roomId;
+        String url = getServerAddress() + "/v1/rooms/" + roomId;
         doGetRequest(url, mAuthorization, callback);
     }
 
     public void refreshRoom(String roomId, OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/refresh_room";
+        String url = getServerAddress() + "/v1/refresh_room";
         String requestBody = "{\"roomID\":\"" + roomId + "\"}";
         doPostRequest(url, requestBody, mAuthorization, callback);
     }
 
     public void getRoomInfoByCreator(String userId, OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/rooms?creator=" + userId;
+        String url = getServerAddress() + "/v1/rooms?creator=" + userId;
         doGetRequest(url, mAuthorization, callback);
     }
 
     public void getLiveRoomsCanPk(OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/rooms?can_pk=true";
+        String url = getServerAddress() + "/v1/rooms?can_pk=true";
         doGetRequest(url, mAuthorization, callback);
     }
 
     public void closeRoom(String userId, String roomId, OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/close_room";
+        String url = getServerAddress() + "/v1/close_room";
         String requestBody = "{\"userID\":\"" + userId + "\",\"roomID\":\"" + roomId + "\"}";
         doPostRequest(url, requestBody, mAuthorization, callback);
     }
@@ -152,13 +156,13 @@ public class QNAppServer {
     }
 
     public void getUploadToken(String key, int expireTimeInSecond, OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/upload/token";
+        String url = getServerAddress() + "/v1/upload/token";
         String requestBody = "{\"filename\":\"" + key + "\",\"expireSeconds\":" + expireTimeInSecond + "}";
         doPostRequest(url, requestBody, mAuthorization, callback);
     }
 
     public void sendFeedbacks(String content, String attachment, OnRequestResultCallback callback) {
-        String url = LIVE_SERVER_ADDR + "/v1/feedbacks";
+        String url = getServerAddress() + "/v1/feedbacks";
         String requestBody = "{\"content\":\"" + content + "\",\"attachment\":\"" + attachment + "\"}";
         doPostRequest(url, requestBody, mAuthorization, callback);
     }
@@ -219,6 +223,7 @@ public class QNAppServer {
                         if (code == ErrorCode.BAD_TOKEN) {
                             EventBus.getDefault().post(new MessageEvent("bad token"));
                         }
+                        Log.i(TAG, "code = " + code + " errorMessage = " + errorMsg);
                         callback.onRequestFailed(code, errorMsg);
                     }
                 }

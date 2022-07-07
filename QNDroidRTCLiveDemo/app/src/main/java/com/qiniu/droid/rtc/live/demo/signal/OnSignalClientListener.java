@@ -14,8 +14,11 @@ public interface OnSignalClientListener {
 
     /**
      * 处理 PK 请求成功回调
+     *
+     * @param pkRoomId 远端房间的 roomID
+     * @param pkRoomToken 远端房间的 roomToken
      */
-    void onReplyPkSuccess();
+    void onReplyPkSuccess(String pkRoomId, String pkRoomToken);
 
     /**
      * 处理 PK 请求失败回调
@@ -29,9 +32,9 @@ public interface OnSignalClientListener {
      * 远端 PK 请求处理回调通知
      *
      * @param isAccepted 是否接受
-     * @param roomToken 远端房间 roomToken
+     * @param pkRoomToken 远端房间 pkRoomToken
      */
-    void onPkRequestHandled(boolean isAccepted, String pkRoomId, String roomToken);
+    void onPkRequestHandled(boolean isAccepted, String pkRoomId, String pkRoomToken);
 
     /**
      * PK 请求超时未处理

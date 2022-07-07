@@ -39,7 +39,7 @@
 #### 下载 SDK
 
 - [Android 体验 Demo 以及 SDK 下载地址](https://github.com/pili-engineering/QNRTC-Android)
-- [Android 接口参考 Demo](https://github.com/pili-engineering/QNRTC-SampleCode-Video-Basic)
+- [Android 接口参考 Demo](https://github.com/pili-engineering/QNRTC-Android/tree/master/QNRTC-API-Examples)
 
 #### 导入 SDK
 SDK 主要包含 demo 代码、SDK jar 包，以及 SDK 依赖的动态库文件。
@@ -47,37 +47,17 @@ SDK 主要包含 demo 代码、SDK jar 包，以及 SDK 依赖的动态库文件
 
 | 文件名称               | 功能    | 大小    |       备注           |
 | --------------------- | -----  | -----  | -------------------  |
-| qndroid-rtc-x.y.z.jar | SDK 库 | 834 KB | 必须依赖               |
-| libqndroid_rtc.so     | 连麦   | 5.9 MB | 必须依赖              |
-| libqndroid_beauty.so  | 美颜   | 452 KB  | 不用自带美颜，可以不依赖 |
-| libqndroid_amix.so    | 混音   | 343 KB  | 不用混音功能，可以不依赖 |
+| qndroid-rtc-x.y.z.jar | SDK 库 | 656 KB | 必须依赖               |
+| libqndroid_rtc.so     | 连麦   | 6.71 MB | 必须依赖              |
+| libqndroid_beauty.so  | 美颜   | 442 KB | 不用自带美颜，可以不依赖 |
+| libqndroid_amix.so    | 混音   | 335 KB | 不用混音功能，可以不依赖 |
 
 - 将 qndroid-rtc-x.y.z.jar 包拷贝到您的工程的 libs 目录下
 - 将动态库拷贝到您的工程对应的目录下，例如：armeabi-v7a 目录下的 so 则拷贝到工程的 jniLibs/armeabi-v7a 目录下
 
-> 导入后生成的 APK 与未导入前相比，大小增加了 4.1M（包含美颜动态库）。需要注意的是，armabi 下的动态库（so 文件）是没有软编能力的，即 armabi 下仅支持硬编码，不支持软编码。若无特殊情况建议使用 armeabi-v7a 下的动态库。
-
 具体可以参考 SDK 包含的 demo 工程，集成后的工程示例如下：
 
 ![](http://oyojsr1f8.bkt.clouddn.com/RTCDemo.jpg)
-
-您也可以添加sdk的文档链接方便开发查阅:
-
-- 首先找到工程中.idea/libraries/目录下的对应依赖包配置文件，然后添加如下链接配置
-
-![](http://oyojsr1f8.bkt.clouddn.com/RTCDemo-javadoc.png)
-
-- 然后打开Android Studio设置菜单，开启文档提示:
-
-![](http://oyojsr1f8.bkt.clouddn.com/RTCDemo-javadoc-Setting.png)
-
-当然，您也可以使用之前配置的任何快捷键
-
-- 现在，开发过程中就可以查看对应接口的文档提示了:
-
-![](http://oyojsr1f8.bkt.clouddn.com/RTCDemo-javadoc-hint.png)
-
-下方的蓝色链接还可以跳转到外部查看
 
 #### 修改 build.gradle
 
@@ -89,11 +69,15 @@ dependencies {
 }
 ```
 
-如果您使用的版本是 2.5.0+，那么为了给您提供更好的使用体验，请务必依赖如下 dns 解析库：
+**添加对 Java8 语言功能的支持：**
 
 ```java
-dependencies {
-    implementation 'com.qiniu:happy-dns:0.2.17'
+android {
+    ...
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
 }
 ```
 
@@ -117,423 +101,254 @@ dependencies {
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
 <uses-permission android:name="android.permission.CAMERA" />
 <uses-permission android:name="android.permission.BLUETOOTH" />
-<uses-permission android:name="android.permission.FLASHLIGHT" />
 <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-<uses-permission android:name="android.permission.READ_PHONE_STATE" />
 <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-<uses-permission android:name="android.permission.READ_LOGS" />
-<uses-permission android:name="android.permission.WAKE_LOCK" />
 ```
 
-在 Android 6.0 (API 23) 开始，用户需要在应用运行时授予权限，而不是在应用安装时授予，并分为正常权限和危险权限两种类型。在实时音视频 SDK 中，用户需要在进入音视频通话房间前动态申请 `CAMERA`、`RECORD_AUDIO`、`WRITE_EXTERNAL_STORAGE` 权限，具体可参考 [Android 官方文档](https://developer.android.com/training/permissions/requesting?hl=zh-cn)。
+在 Android 6.0 (API 23) 开始，用户需要在应用运行时授予权限，而不是在应用安装时授予，并分为正常权限和危险权限两种类型。在实时音视频 SDK 中，用户需要在进入音视频通话房间前动态申请 `CAMERA`、`RECORD_AUDIO` 权限，具体可参考 [Android 官方文档](https://developer.android.com/training/permissions/requesting?hl=zh-cn)。
 
 **SDK 集成完成后便可以使用七牛实时音视频 SDK 进行直播、PK 场景的实现了，具体使用步骤请参考下文**
 
 ### SDK 基础使用
 为了实现直播 PK 功能场景，需要您务必先了解七牛实时音视频 SDK 的基础使用，包括`roomToken 的生成`，`加入房间`，`采集`，`发布`，`订阅` 等过程。
 
-> **roomToken 生成过程**可参考[七牛实时音视频云接入指南](https://doc.qnsdk.com/rtn/docs/rtn_startup)，下面将主要介绍加入房间等基本操作。
+> 1. **roomToken 生成过程**可参考[七牛实时音视频云接入指南](https://developer.qiniu.com/rtc/8813/roomToken)，下面将主要介绍加入房间等基本操作。
+> 2. SDK 的基础使用可以参考[实现视频通话](https://developer.qiniu.com/rtc/8766/quick-start-android)文档
 
-#### 初始化
+### 直播 PK 场景实现
+在了解直播 PK 场景实现方式之前，需要先了解该场景所需要用到的两个概念：
 
-首先，在 Application 里，完成 SDK 的初始化操作：
+1. [CDN 转推](https://developer.qiniu.com/rtc/8770/turn-the-cdn-push-android)：用于实现直播流的推送。
+2. [跨房媒体转发](https://developer.qiniu.com/rtc/10631/media-relay-android)：用于实现音视频数据的跨房转发
+
+在了解了上述概念之后，我们来看下具体实现。
+
+#### 直播场景
+
+直播场景的流程图可参考如下：
+
+![](https://docs.qnsdk.com/%E7%9B%B4%E6%92%AD%E7%9A%84%E5%BC%80%E5%A7%8B%E7%BB%93%E6%9D%9F.jpg)
+
+从上述流程图可以看出，除了基本的**音视频 Track 创建**、**加入房间**、**发布 Track** 之外，还需要通过**开启单路转推**的方式进行单主播的直播.
+
+伪代码参考如下：
 
 ```java
-QNRTCEnv.init(getApplicationContext());
+// 初始化
+QNRTC.init(this, mRTCEventListener); // 初始化 RTC
+QNRTCClientConfig clientConfig = new QNRTCClientConfig(QNClientMode.LIVE, QNClientRole.BROADCASTER);
+QNRTCClient client = QNRTC.createClient(clientConfig, clientEventListener); // 创建 QNRTCCLient 对象
+client.setLiveStreamingListener(liveStreamingListener); // 设置 CDN 转推事件监听
+
+// 创建音视频采集 Track
+QNMicrophoneAduioTrack microphoneAudioTrack = QNRTC.createMicrophoneAudioTrack(); // 创建麦克风采集 Track
+QNCameraVideoTrack cameraVideoTrack = QNRTC.createCameraVideoTrack(cameraVideoTrackConfig); // 创建摄像头采集 Track
+
+// 加房间
+String roomToken = getRoomToken(); // 通过业务服务获取 roomToken
+client.join(roomToken); // 加入房间
+
+// 发布音视频 Track
+client.publish(publishResultCallback, cameraVideoTrack, microphoneAudioTrack);
+
+// 开启单路转推
+QNDirectLiveStreamingConfig directLiveStreamingConfig = new QNDirectLiveStreamingConfig(); // 创建单路转推配置类对象
+directLiveStreamingConfig.setStreamID("direct_stream_ID"); // 设置单路转推唯一标识符
+directLiveStreamingConfig.setUrl("publish_url"); // 设置单路转推任务的推流地址，该地址需和合流转推时保持一致，并使得 SerialNum 自增以提高直播流优先级
+directLiveStreamingConfig.setAudioTrack(microphoneAudioTrack); // 设置音频 Track
+directLiveStreamingConfig.setVideoTrack(cameraVideoTrack); // 设置视频 Track
+client.startLiveStreaming(directLiveStreamingConfig); // 开启单路转推
+
+// 停止单路转推
+client.stopLiveStreaming(directLiveStreamingConfig);
+
+// 离开房间
+client.leave();
+
+// 反初始化
+QNRTC.deinit();
 ```
 
-#### 添加音视频通话需要的渲染控件
+**注意事项：**
 
-用户需要在布局文件中期望的位置添加两个 QNSurfaceView 分别用来做本地视频画面预览窗口和远端视频画面渲染窗口。
+- **QNDirectLiveStreamingConfig仅支持配置一路视频轨和一路音频轨，重复设置会被覆盖**
 
-示例代码如下：
+- **单路转推的场景下，务必保证配置了 "固定分辨率" `QNRTCSetting#setMaintainResolution` 选项的开启，否则会出现不可预期的问题！！！**
 
-```java
-<com.qiniu.droid.rtc.QNSurfaceView
-    android:id="@+id/local_surface_view"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent" />
+#### 直播 PK 切换
 
-<com.qiniu.droid.rtc.QNSurfaceView
-    android:id="@+id/remote_surface_view"
-    android:layout_width="150dp"
-    android:layout_height="150dp" />
-```
-```java
-mLocalWindow = findViewById(R.id.local_surface_view);
-mRemoteWindow = findViewById(R.id.remote_surface_view);
-```
+直播 PK 切换场景的流程图，可参考如下：
 
------
+![](https://docs.qnsdk.com/%E7%9B%B4%E6%92%AD%20PK%20%E5%88%87%E6%8D%A2.jpg)
 
-#### 创建音视频通话核心类
+从上述流程图可以看出，直播 PK 切换的场景，主要涉及到**单路转推和合流转推的切换**以及**跨房媒体转发**两个主要的功能点。
 
-本操作推荐在 Activity 生命周期中的 onCreate() 中完成
+直播 PK 场景切换步骤和伪代码参考如下：
+
+1. 首先，直播场景需要设置 CDN 转推的事件监听器，其回调方法和直播 PK 切换场景下所需完成的工作参考如下：
 
 ```java
-mEngine = QNRTCEngine.createEngine(getApplicationContext(), setting);
-```
-
-其中，setting 是音视频通话核心类的核心配置项，具体配置可参考 [QNRTCSetting](https://doc.qnsdk.com/rtn/android/docs/api_qnrtcsetting)
-
-#### 设置回调
-
-QNRTCEngineEventListener 包含了音视频通话过程中的所有重要接口，因此需要注册该监听器：
-
-```java
-mEngine.setEventListener(/*QNRTCEngineEventListener*/ listener);
-```
-
-除了上述设置方式，监听器也可以在创建音视频通话核心类的过程中直接传入：
-
-```java
-mEngine = QNRTCEngine.createEngine(getApplicationContext(), setting, /*QNRTCEngineEventListener*/ this);
-```
-
------
-
-#### 创建 Track
-
-Track 是 v2.x.x 版本中推出的新概念，如果您对 Track 概念不太了解，请查看 SDK 概述中的[概念介绍](https://doc.qnsdk.com/rtn/android/docs/preparation#5)。本文主要介绍互动直播场景的搭建，所以我们创建一条视频 Track 和一条音频 Track，并将它们设置为 master 轨道，代码如下：
-
-```java
-QNTrackInfo localVideoTrack = mEngine.createTrackInfoBuilder()
-                        .setVideoEncodeFormat(format)
-                        .setSourceType(QNSourceType.VIDEO_CAMERA)
-                        .setMaster(true)
-                        .create();
-QNTrackInfo localAudioTrack = mEngine.createTrackInfoBuilder()
-                        .setSourceType(QNSourceType.AUDIO)
-                        .setMaster(true)
-                        .create();
-```
-
-创建好本地视频 Track 后即可设置预览窗口，代码如下：
-
-```java
-mEngine.setRenderWindow(localVideoTrack, mLocalWindow);
-```
-
-#### 加入房间
-
-上文提到过，SDK 所有的功能都是从 `RoomToken` 开始的，所以加入房间只需要将 `RoomToken` 作为参数传给 SDK 就可以了。代码如下：
-
-```java
-mEngine.joinRoom(roomToken);
-```
-
-加入房间成功后会触发 `onRoomStateChanged(QNRoomState state)` 回调，状态会从 QNRoomState.CONNECTING 变为 QNRoomState.CONNECTED。此时即可进行发布、订阅等操作。
-
-在进入音视频通话房间之后，用户可以根据业务场景的需求在适当的时间调用离开房间的接口退出连麦，详情请见[房间管理](https://doc.qnsdk.com/rtn/android/docs/room_management)。
-
-#### 发布本地 Tracks
-
-成功加入房间后，即可在 `onRoomStateChanged` 回调中调用以下代码进行本地 Track 的发布：
-
-```java
-@Override
-public void onRoomStateChanged(QNRoomState state) {
-    switch (state) {
-        case CONNECTED:
-            mEngine.publishTracks(Arrays.asList(localVideoTrack, localAudioTrack));
-            break;
+// CDN 转推的事件监听器
+QNLiveStreamingListener liveStreamingListener = new QNLiveStreamingListener() {
+  @Override
+  public void onStarted(String streamID) {
+    // 转推任务成功创建时触发此回调
+    if (directLiveStreamingConfig != null 
+        && streamID.equals(directLiveStreamingConfig.getStreamID()) 
+        && isTranscodingStreamingStarted) {   
+      mClient.stopLiveStreaming(transcodingLiveStreamingConfig); // 若单路转推成功，且存在合流转推任务，需停止合流转推
     }
-}
-```
-
-发布成功后，本地会收到 `onLocalPublished(List<QNTrackInfo> trackInfoList)` 回调。远端用户会收到 `onRemotePublished(String remoteUserId, List<QNTrackInfo> trackInfoList)` 回调。
-
-> SDK 提供了 `QNRTCEngine#publish` / `QNRTCEngine#publishVideo` / `QNRTCEngine#publishAudio` 接口，可利用这些接口快速发布作为 master 的音视频/视频/音频 Track，无需自行创建及管理 Track。
-
-#### 订阅远端 Tracks
-
-SDK 默认会进行自动订阅，订阅成功后将会收到 `onSubscribed(String remoteUserId, List<QNTrackInfo> trackInfoList)` 的回调，在此回调内则可进行对 Track 的渲染窗口设置的操作：
-
-```java
-@Override
-public void onSubscribed(String remoteUserId, List<QNTrackInfo> trackInfoList) {
-    for(QNTrackInfo track : trackInfoList) {
-        if (track.getTrackKind().equals(QNTrackKind.VIDEO)) {
-            mEngine.setRenderWindow(track, mRemoteWindow);
-        }
+    if (transcodingLiveStreamingConfig != null 
+        && streamID.equals(transcodingLiveStreamingConfig.getStreamID())) {
+      if (isDirectStreamingStarted) {
+        mClient.stopLiveStreaming(directLiveStreamingConfig); // 若合流转推成功，且存在单路转推任务，需停止单路转推
+      }
+      mClient.setTranscodingLiveStreamingTracks(transcodingStreamID, transcodingLiveStreamingTracks); // 配置合流布局
     }
-}
+  }
+
+  @Override
+  public void onStopped(String streamID) {
+		// 转推任务成功停止时触发此回调
+  }
+
+  @Override
+  public void onTranscodingTracksUpdated(String streamID) {
+ 		// 转推任务配置更新时触发此回调
+  }
+
+  @Override
+  public void onError(String streamID, QNLiveStreamingErrorInfo errorInfo) {
+    // 转推任务出错时触发此回调
+  }
+};
+client.setLiveStreamingListener(liveStreamingListener); // 设置 CDN 转推事件监听，参考直播场景伪代码，仅需初始化时设置一次即可
 ```
 
-在成功订阅之后，用户可以根据业务场景的需求在适当的时间调用取消订阅的接口取消订阅相应的 Track，详情请见[发布与订阅](https://doc.qnsdk.com/rtn/android/docs/publish_subscribe)
-
-#### 单路转推任务
-
-单路转推任务是指服务端对单独的一路音视频流进行转推的工作，主要适用于不包含连麦的`秀场直播`、`连麦中需要将某一路流单独转推落存储`等场景。详细使用接口可参考 [QNForwardJob](https://doc.qnsdk.com/rtn/android/docs/api_forwardjob)
-
-#### 合流转推任务
-
-多路流合流直播场景，主要适用于`连麦互动直播`、`PK 直播`以及`单主播需要两路以上视频合流转推`等场景。简单来说，就是对连麦各方的视频画面进行合流，然后转推。
-
-#### 离开房间
-
-当音视频通话结束，调用以下代码离开房间：
+2. 主播双方通过业务服务器进行 PK 请求的协商，在协商成功后，主播双方需要获取到远端房间的 roomID 和 roomToken，以此来进行跨房媒体转发。伪代码参考如下：
 
 ```java
-mEngine.leaveRoom()
+// 此处伪代码仅作为示例，实际的 PK 请求协商需要您的业务服务自行实现
+// 假设主播 A 向主播 B 发起 PK 请求
+
+// 主播 A 发起 PK 请求
+startPk(remoteRoomID, new PKResultCallback() {
+  @Override
+  onResult(String remoteRoomID, String remoteRoomToken) {
+    // 记录远端房间的 roomID 和 roomToken
+    BRoomID = remoteRoomID;
+    BRoomToken = remoteRoomToken;
+  }
+});
+
+// 主播 B 接收并回复 PK 请求
+replyPk(remoteRoomID, new PKResultCallback() {
+  @Override
+  onResult(String remoteRoomID, String remoteRoomToken) {
+    // 记录远端房间的 roomID 和 roomToken
+    ARoomID = remoteRoomID;
+    ARoomToken = remtoeRoomToken;
+  }
+});
 ```
 
-#### 销毁
-
-在整个 Activity 销毁时，用户需要调用以下代码对资源进行释放，一般此操作建议在 Activity 生命周期的 `onDestroy()` 中进行，示例代码如下：
+3. 在 PK 请求协商完毕后，两个主播开始 PK 流程，该过程需要**开启跨房媒体转发**，并完成**单路转推到合流转推任务的切换**，主播双方的实现逻辑相同，这里以主播 A 为例，伪代码参考如下：
 
 ```java
-@Override
-protected void onDestroy() {
-    super.onDestroy();
-    mRTCEngine.destroy();
-}
-```
+// 初始化跨房媒体转发配置信息
+QNMediaRelayInfo srcRoomInfo = new QNMediaRelayInfo(roomID, roomToken); // 初始化源房间信息
+QNMediaRelayConfiguration mediaRelayConfiguration = new QNMediaRelayConfiguration(srcRoomInfo); // 初始化跨房媒体转发配置类
+QNMediaRelayInfo destRelayRoomInfo = new QNMediaRelayInfo(BRoomID, BRoomToken); // 初始化目标房间信息
+mediaRelayConfiguration.addDestRoomInfo(destRelayRoomInfo); // 设置目标房间信息
 
-> 七牛实时音视频 SDK 提供了丰富灵活的拓展接口，更多接口配置可参考[Android 开发手册](https://doc.qnsdk.com/rtn/android)
-
-### 直播场景
-直播场景，即单主播直播的场景，仅将一路音视频流直接转推到直播服务器。适用于秀场直播、电商直播等场景。
-
-场景示意图如下：
-
-![单路流直播](https://docs.qnsdk.com/forward_job.jpg)
-
-为了实现上述场景，您可以参考如下实现方式：
-
-#### 创建单路转推任务
-
-QNForwardJob 用于配置单路转推的相关信息，包括推流地址、参与合流的音视频轨，详细的接口设置可参考 [QNForwardJob](https://doc.qnsdk.com/rtn/android/docs/api_forwardjob)。
-
-创建转推任务的示例代码如下：
-
-```java
-// 创建单路转推任务对象
-mForwardJob = new QNForwardJob();
-// 设置 ForwardJob id
-mForwardJob.setForwardJobId(mRoomName);
-// 设置推流地址
-mForwardJob.setPublishUrl(String.format(getString(R.string.publish_url), mRoomName));
-// 设置单路流中的音频轨，仅支持一路音频的设置，重复设置会被覆盖
-mForwardJob.setAudioTrack(mLocalAudioTrackInfo);
-// 设置单路流中的视频轨，仅支持一路视频的设置，重复设置会被覆盖
-mForwardJob.setVideoTrack(mLocalCameraTrackInfo);
-// 创建单路流转推任务
-mEngine.createForwardJob(mForwardJob);
-```
-
-单路转推任务创建成功后，会触发如下回调接口：
-
-```java
-/**
-  * 当单路流转推任务创建成功的时候会回调此方法
-  *
-  * @param forwardJobId 转推任务 ID
-  */
- @Override
- public void onCreateForwardJobSuccess(String forwardJobId) {
-     // forwardJobId 即为创建成功的任务 id
-     ToastUtils.s(RoomActivity.this, "单路转推任务 " + forwardJobId + " 创建成功！");
- }
-```
-创建成功即开启了单路流转推，可以通过相应的播放链接拉取直播流进行观看
-
-**注意：**
-
-**1. QNForwardJob 仅支持配置一路视频轨和一路音频轨，重复设置会被覆盖**
-
-**2. 单路转推的场景下，务必保证配置了 "固定分辨率" `QNRTCSetting#setMaintainResolution` 选项的开启，否则会出现不可预期的问题！！！**
-
-#### 停止单路转推任务
-
-可以通过如下方式实现单路转推任务的停止：
-
-```java
-mEngine.stopForwardJob(mForwardJob.getForwardJobId());
-```
-
-### PK 场景
-主播连麦 PK 场景指的是主播在直播时，可以对另外一个直播间的主播发起 PK 挑战，一旦挑战被接受，两个直播间的主播就会加入到同一个房间，并开始进行连麦互动。
-
-与常规 1v1 连麦场景不同的是，PK 场景下直播界面会一分为二，每位主播各自的粉丝观看链接不会改变，但是可以同时看到两位主播的画面。
-
-**为了更浅显易懂的让您了解从直播到 PK 场景切换的实现方式，我们预先设置如下背景：**
-
-1. 主播 A、主播 B 在各自房间进行直播
-2. 主播 A 对主播 B 发起直播请求，主播 B 接受主播 A 的 PK 请求并进行处理
-3. 主播 B 在同意主播 A 的 PK 请求后，切换推流任务为合流转推任务
-4. 主播 A 收到主播 B 同意 PK 的请求后，离开自己房间并加入到主播 B 的房间开启合流转推任务进行 PK
-4. PK 结束后，主播 A 需要离开主播 B 的直播间并回到自己的直播间进行直播，两位主播需要切换推流任务为单路转推任务
-
-基于上述背景，您可以参考如下实现方式：
-
-#### 直播场景切换到 PK 场景
-
-在上述背景中，每一个主播在单独直播的时候都会维护一个 `QNForwardJob` 任务实例，在主播切换到 PK 场景时，主播 A 和主播 B 的实现逻辑如下：
-
-##### 主播 A
-主播 A 在接收到主播 B 同意 PK 的请求之后，按照如下步骤进行操作：
-
-- 停止本地维护的 QNForwardJob
-
-```java
-if (mForwardJob != null) {
-    mEngine.stopForwardJob(mForwardJob.getForwardJobId());
-    mForwardJob = null;
-}
-```
-
-- 离开自己的房间，并在成功离开房间的回调里面加入主播 B 的房间：
-
-```java
-// 离开自己的房间
-mEngine.leaveRoom();
-
-// 在离开房间回调中加入主播 B 的目标房间
-@Override
-public void onRoomLeft() {
-    if (mIsPkMode) {
-        joinRoom(mTargetPkRoomToken);
+// 开启跨房媒体转发
+// 成功完成跨房媒体转发后，远端用户会收到 QNClientEventListener.onUserPublished 和 QNClientEventListener.onSubscribed 回调，可在回调中开启合流转推任务
+client.startMediaRelay(mediaRelayConfiguration, new QNMediaRelayResultCallback() {
+  @Override
+  public void onResult(Map<String, QNMediaRelayState> map) {
+    if (stateMap.containsKey(BRoomID) && stateMap.get(BRoomID) == QNMediaRelayState.SUCCESS) {
+        // 成功完成跨房媒体转发，可以在订阅到远端流之后开启合流转推
     }
+  }
+
+  @Override
+  public void onError(int errorCode, String description) {
+		// 跨房媒体转发出现异常
+  }
+});
+
+// 开启合流转推任务
+// 通过监听 QNClientEventListener.onSubscribed 回调订阅到远端音视频流之后，执行此步骤
+@Override
+public void onSubscribed(String remoteUserID, List<QNRemoteAudioTrack> remoteAudioTracks, List<QNRemoteVideoTrack> remoteVideoTracks) {
+  QNTranscodingLiveStreamingConfig transcodingLiveStreamingConfig = new QNTranscodingLiveStreamingConfig(); // 创建合流转推配置类对象
+  transcodingLiveStreamingConfig.setStreamID("transcoding_stream_ID"); // 设置合流任务 id，该 id 为合流任务的唯一标识符
+  transcodingLiveStreamingConfig.setWidth(Config.STREAMING_WIDTH); // 设置合流画布宽度
+  transcodingLiveStreamingConfig.setHeight(Config.STREAMING_HEIGHT); // 设置合流画布高度
+  transcodingLiveStreamingConfig.setBitrate(Config.STREAMING_BITRATE); // 设置合流任务的码率，单位：kbps
+  transcodingLiveStreamingConfig.setVideoFrameRate(Config.STREAMING_FPS); // 设置合流任务的帧率
+  transcodingLiveStreamingConfig.setUrl("publish_url"); // 设置合流任务的推流地址，该地址需和单路转推时保持一致，并使得 SerialNum 自增以提高直播流优先级
+  mClient.startLiveStreaming(transcodingLiveStreamingConfig); // 开启合流转推
+}
+
+// 停止单路转推任务
+// 合流转推成功后，会触发 QNLiveStreamingListener.onStarted 回调接口，在回调中执行此步骤
+@Override
+public void onStarted(String streamID) {
+  client.stopLiveStreaming(directLiveStreamingConfig);
+}
+
+// 配置合流布局
+// 合流转推成功后，会触发 QNLiveStreamingListener.onStarted 回调接口，在回调中执行此步骤
+// 合流布局的位置需要根据需求自行定义，这里以配置布局在左上角，宽高占合流画面一半为例
+@Override
+public void onStarted(String streamID) {
+  QNTranscodingLiveStreamingTrack liveStreamingTrack = new QNTranscodingLiveStreamingTrack();
+  liveStreamingTrack.setTrackID(track.getTrackID()); // 设置待合流的 TrackID
+  liveStreamingTrack.setX(0); // 设置 Track 在合流布局中位置的左上角 x 坐标，仅视频需要
+  liveStreamingTrack.setY(0); // 设置 Track 在合流布局中位置的左上角 y 坐标，仅视频需要
+  liveStreamingTrack.setZOrder(0); // 设置合流层级，值越大，画面层级越高，仅视频需要
+  liveStreamingTrack.setWidth(streamingWidth / 2); // 设置 Track 在合流布局中的宽度，仅视频需要
+  liveStreamingTrack.setHeight(streamingHeight / 2); // 设置 Track 在合流布局中的高度，仅视频需要
+  List<QNTranscodingLiveStreamingTrack> transcodingLiveStreamingTracks = new ArrayList<>();
+  transcodingLiveStreamingTracks.add(liveStreamingTrack); // 添加合流布局，可以添加多个
+  client.setTranscodingLiveStreamingTracks(transcodingStreamID, transcodingLiveStreamingTracks); // 配置合流布局到合流任务中
 }
 ```
 
-- 在成功加入主播 B 的房间后，创建并开启合流转推任务（**注意：单路转推任务和合流转推任务的推流地址不能改变**）
+4. PK 结束时，主播切换回单独直播的场景，主播双方需要**停止跨房媒体转发**，并将**合流转推任务切换到单路转推任务**，主播双方的实现逻辑相同，同样以主播 A 为例，伪代码参考如下：
 
 ```java
-// 在加入房间之后，创建合流转推任务
-@Override
-public void onRoomStateChanged(QNRoomState qnRoomState) {
-    switch (qnRoomState) {
-        case CONNECTED:
-             if (mIsPkMode) {
-                // 创建合流任务对象
-                if (mQNMergeJob == null) {
-                    mQNMergeJob = new QNMergeJob();
-                }
-                // 设置合流任务 id，该 id 为合流任务的唯一标识符
-                mQNMergeJob.setMergeJobId(mRoomId);
-                // 设置合流任务的推流地址，该场景下需保持一致
-                mQNMergeJob.setPublishUrl(String.format(getString(R.string.publish_url), mRoomId));
-                mQNMergeJob.setWidth(Config.STREAMING_WIDTH);
-                mQNMergeJob.setHeight(Config.STREAMING_HEIGHT);
-                // QNMergeJob 中码率单位为 bps，所以，若期望码率为 1200kbps，则实际传入的参数值应为 1200 * 1000
-                mQNMergeJob.setBitrate(2000 * 1000);
-                mQNMergeJob.setFps(30);
-                mQNMergeJob.setStretchMode(QNStretchMode.ASPECT_FIT);
-                
-                // 设置合流背景
-                QNBackGround qnBackGround = new QNBackGround();
-                qnBackGround.setFile(Config.STREAMING_BACKGROUND);
-                qnBackGround.setX(0);
-                qnBackGround.setY(0);
-                qnBackGround.setH(Config.STREAMING_HEIGHT);
-                qnBackGround.setW(Config.STREAMING_WIDTH);
-                mQNMergeJob.setBackground(qnBackGround);
-                // 创建合流任务
-                mEngine.createMergeJob(mQNMergeJob);
-             }
-             break;
-     }
-}
-
-// 合流任务创建成功后会触发此回调
-@Override
-public void onCreateMergeJobSuccess(String mergeJobId) {
-    mMergeJobId = mergeJobId;
-    Log.i(TAG, "合流任务创建成功：" + mergeJobId + " url = " + mQNMergeJob.getPublishUrl());
-}
-
-// 合流任务创建成功后，需要配置两个主播的 QNMergeTrackOption，详细使用可参考 demo 实现
-mEngine.setMergeStreamLayouts(mMergeTrackOptions, mMergeJobId);
-```
-
-**经过上述步骤，主播 A 即可加入到主播 B 的直播间并进行互动 PK 了。其中，更详细的合流配置选项，可参考[合流配置](https://doc.qnsdk.com/rtn/android/docs/merge_stream)文档**
-
-##### 主播 B
-主播 B 在同意主播 A 的 PK 请求后，由于主播 B 无需切换房间，所以步骤会先谷底简单些，具体步骤如下：
-
-- 创建合流转推任务
-- 在创建合流任务成功的回调中，停止单路转推任务
-- 在适当的时机配置自己和主播 A 的合流布局进行合流直播
-
-**经过上述操作，两端即可成功进入 PK 直播场景进行互动直播了**
-
-#### PK 场景切换到直播场景
-
-当主播 A 或者主播 B 有一端想要停止 PK 时，实现逻辑如下：
-
-##### 主播 A
-主播 A 退出 PK 时，首先要通知主播 B 自己要结束 PK，然后可按照如下步骤切换回单独的直播场景
-
-- 停止合流转推任务
-
-```java
-// 1. 首先要停止合流转推
-if (mQNMergeJob != null) {
-    Log.i(TAG, "停止合流任务：" + mMergeJobId);
-    mEngine.stopMergeStream(mMergeJobId);
-    mMergeJobId = null;
-    mQNMergeJob = null;
-}
-
-```
-
-- 离开主播 B 的房间，并加入到自己原有的房间
-
-```java
-// 离开主播 B 的房间
-mEngine.leaveRoom();
-
-// 在离开房间的回调里更新本地 UI 为单直播场景，并重新加入原有的房间
-@Override
-public void onRoomLeft() {
-    relayoutLocalSurfaceView(false);
-    updateBtnsSources(false);
-    if (mEngine != null) {
-        mEngine.joinRoom(mOriginalRoomToken);
+// 停止跨房媒体转发
+client.stopMediaRelay(new QNMediaRelayResultCallback() {
+  @Override
+  public void onResult(Map<String, QNMediaRelayState> map) {
+    if (stateMap.containsKey(BRoomID) && stateMap.get(BRoomID) == QNMediaRelayState.STOPPED) {
+      // 成功结束跨房媒体转发后，开启单路转推任务
+      client.startLiveStreaming(directLiveStreamingConfig);
     }
+  }
+
+  @Override
+  public void onError(int errorCode, String description) {
+		// 跨房媒体转发出现异常
+  }
+});
+
+// 停止合流转推任务
+// 单路转推成功后，会触发 QNLiveStreamingListener.onStarted 回调接口，在回调中执行此步骤
+@Override
+public void onStarted(String streamID) {
+  client.stopLiveStreaming(transcodingLiveStreamingConfig);
 }
 ```
 
-- 成功回到自己房间之后，重新发布音视频 Track，并创建单路转推任务（**注意：单路转推任务和合流转推任务的推流地址不能改变**）
+经过上述步骤，即可实现一个完整的直播 PK 的切换场景，其中需要注意如下几点：
 
-```java
-// 发布音视频 Tracks
-@Override
-public void onRoomStateChanged(QNRoomState qnRoomState) {
-    mEngine.publishTracks(mLocalTrackList);
-}
+- **单路转推和合流转推的推流地址需要保证相同，且需要在推流地址后面加上 `serialnum` 的参数，如 "rtmp://domain/app/streamName?serialnum=xxx"，其中，serialnum 决定流的优先级，从 1 开始递增，值越大，优先级越高，优先级低的流会被停止掉，这样既可以使切换变得平滑，也可以避免出现两路流不停抢流的现象。**
 
-// 发布 Tracks 成功之后，创建单路转推任务
-@Override
-public void onLocalPublished(List<QNTrackInfo> trackInfoList) {
-    if (mForwardJob == null) {
-        mForwardJob = new QNForwardJob();
-        mForwardJob.setForwardJobId(mRoomId);
-        mForwardJob.setPublishUrl(String.format(getString(R.string.publish_url), mRoomId));
-        mForwardJob.setAudioTrack(mLocalAudioTrack);
-        mForwardJob.setVideoTrack(mLocalVideoTrack);
-        mForwardJob.setInternalForward(true);
-    }
-    mEngine.createForwardJob(mForwardJob);
-}
-```
-
-**经过上述步骤，主播 A 即可成功回到自己房间进行单主播直播了**
-
-##### 主播 B
-主播 B 退出 PK 时，由于并没有切换房间，所以步骤会相对简单些：
-
-- 通知主播 A 要退出 PK 直播
-- 创建单路转推任务
-- 在单路转推任务创建成功后，停止合流转推任务
-
-**经过上述步骤，主播 B 即可成功回到自己房间进行单主播直播了**
-
-> **上述步骤是以伪代码的形式描述如何进行 PK 场景的直播，更详细的处理逻辑可参考 [QNRTCLive-Android](https://github.com/pili-engineering/QNRTCLive-Android)**
+> **上述步骤是以伪代码的形式描述如何进行直播 PK 场景的实现，更详细的处理逻辑可参考 [QNRTCLive-Android](https://github.com/pili-engineering/QNRTCLive-Android)**
 
 ### 语音房
 语音房场景，即纯语音互动直播，观众可随时上麦和主播进行语音交互。适用于剧本杀、狼人杀等场景。
@@ -546,24 +361,30 @@ public void onLocalPublished(List<QNTrackInfo> trackInfoList) {
 语音房的直播场景，其实本质是观众加入到 RTC 房间并只进行订阅操作即可
 
 #### 观众上下麦
+创建本地音频采集 Track：
+
+```java
+QNMicrophoneAduioTrack microphoneAudioTrack = QNRTC.createMicrophoneAudioTrack();
+```
+
 在加入房间之后，观众可以通过信令向主播发起上麦请求，主播同意后，观众调用如下接口进行音频的发布即可完成上麦操作：
 
 ```java
-mEngine.publishAudio();
+client.publish(publishResultCallback, microphoneAudioTrack);
 ```
 
 下麦场景同样是在信令交互完成后，取消发布音频即可：
 
 ```java
-mEngine.unPublishAudio();
+client.unpublish(microphoneAudioTrack);
 ```
 
 #### 静音操作
 观众连麦过程中，可能需要暂时性的将麦克风静音，可通过调用如下接口实现：
 
 ```java
-mEngine.muteLocalAudio(true);
-mEngine.muteLocalAudio(false);
+microphoneAudioTrack.setVolume(0.0f);
+microphoneAudioTrack.setVolume(1.0f);
 ```
 
 > **上述步骤是以伪代码的形式描述如何进行语音房的实现，更详细的处理逻辑可参考 [QNRTCLive-Android](https://github.com/pili-engineering/QNRTCLive-Android)**
@@ -643,7 +464,7 @@ ByteDancePlugin.getComposerList(ComposerType.RESHAPE);
 ByteDancePlugin.getComposerList(ComposerType.BODY);
 //获取所有美妆信息
 ByteDancePlugin.getMakeupList();
-``` 
+```
 需要说明的是，获取美妆信息的接口有所不同，因为美妆资源是二级列表，其结构如下：
 
 ```
@@ -792,23 +613,3 @@ dependencies {
 ### 使用到的融云产品
 * **即时通讯 IMLib SDK**  可详细查看 [IMLib SDK 开发指南](https://www.rongcloud.cn/docs/android.html)
 * 主要请参考方案中 **DataInterface** 和 **ChatroomKit** 的用法。
-
-
-# 常见错误码
-
-| 错误枚举 | 错误码 | 描述 |
-| -------- | -------- | -------- |
-| REQUEST_TIMEOUT | -1 | 请求超时 |
-| NETWORK_UNREACHABLE | -2 | 网络不可达 |
-| INTERNAL_ERROR | -3 | 内部错误 |
-| BAD_TOKEN | 401003 | token 错误，通常出现于账号重复登录 |
-| NO_SUCH_ROOM | 404002 | 房间不存在 |
-| UNKNOWN_MESSAGE | 10001 | 消息不属于已知类型，无法解析 |
-| TOKEN_ERROR | 10002 | 信令认证用的 token 错误 |
-| NO_PERMISSION | 10003 | 没有权限（观众发起请求等情况） |
-| ROOM_NOT_EXIST | 10011 | 信令房间不存在 |
-| ROOM_IN_PK | 10012 | 房间正在 PK 连麦直播中，不能发起 PK |
-| ROOM_NOT_IN_PK | 10013 | 房间未在 PK 中，不能结束 PK |
-| POSITION_OCCUPIED | 10016 | 上麦位置已被占用 |
-| INVALID_PARAMETER | 10031 | 非法参数 |
-

@@ -83,7 +83,7 @@ public class QNUploadManager {
         return hostname -> {
             InetAddress[] ips;
             try {
-                ips = Utils.getDefaultDnsManager(mContext).queryInetAdress(new Domain(hostname));
+                ips = Utils.getDefaultDnsManager().queryInetAdress(new Domain(hostname));
             } catch (IOException e) {
                 e.printStackTrace();
                 throw new UnknownHostException(e.getMessage());
